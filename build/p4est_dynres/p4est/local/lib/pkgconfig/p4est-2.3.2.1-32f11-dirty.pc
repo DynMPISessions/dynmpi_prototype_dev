@@ -1,0 +1,19 @@
+
+prefix=/opt/hpc/build/p4est_dynres/p4est/local
+exec_prefix=${prefix}
+libdir=${exec_prefix}/lib
+includedir=${prefix}/include
+
+p4est_CC=/opt/hpc/external/ompi/bin/mpicc
+p4est_CFLAGS= -g -O2 -std=c99
+
+Name: p4est
+Description: p4est manages a collection---a forest---of octrees in parallel.
+Version: 2.3.2.1-32f11-dirty
+URL: https://www.p4est.org/
+
+Requires: libsc >= 2.3
+
+Cflags: -I${prefix}/include
+Libs: -L${exec_prefix}/lib -lp4est
+Libs.private:    -lm   

@@ -1,0 +1,306 @@
+<?xml version="1.0" encoding="utf-8"?>
+<log version="1.0" tool="runtool">
+
+<msg id="1" tool="runtool">
+  <type>log-start</type>
+  <arg>2021/11/03 09:00:49</arg>
+</msg>
+<msg id="2" tool="runtool">
+  <type>collector-starts</type>
+</msg>
+<msg id="3" tool="runtool">
+  <type>marker-file</type>
+  <arg>/opt/hpc/build/p4est_dynres/applications/r000ti2/r000ti2.inspxe</arg>
+</msg>
+<msg id="4" tool="tc">
+  <type>START</type>
+  <severity>INFO</severity>
+  <timestamp>Wed Nov  3 09:00:49 2021</timestamp>
+</msg>
+<msg id="5" tool="tc">
+  <type>EXEC_OF_INTEREST</type>
+  <arg>/opt/hpc/external/prrte/bin/prte</arg>
+  <arg>401</arg>
+  <severity>INFO</severity>
+  <timestamp>Wed Nov  3 09:00:49 2021</timestamp>
+</msg>
+<msg id="6" tool="tc">
+  <type>LOAD_MODULE</type>
+  <arg>/opt/hpc/external/prrte/bin/prte</arg>
+  <arg>0x400000</arg>
+  <arg>0x60c887</arg>
+  <arg>2</arg>
+  <severity>INFO</severity>
+  <timestamp>Wed Nov  3 09:00:49 2021</timestamp>
+</msg>
+<msg id="7" tool="tc">
+  <type>LOAD_MODULE</type>
+  <arg>/lib64/ld-linux-x86-64.so.2</arg>
+  <arg>0x7f94b8d66000</arg>
+  <arg>0x7f94b8f941cf</arg>
+  <arg>3</arg>
+  <severity>INFO</severity>
+  <timestamp>Wed Nov  3 09:00:49 2021</timestamp>
+</msg>
+<msg id="8" tool="tc">
+  <type>LOAD_MODULE</type>
+  <arg>[vdso]</arg>
+  <arg>0x7ffe23fe0000</arg>
+  <arg>0x7ffe23fe0fde</arg>
+  <arg>4</arg>
+  <severity>INFO</severity>
+  <timestamp>Wed Nov  3 09:00:49 2021</timestamp>
+</msg>
+<msg id="9" tool="tc">
+  <type>LOAD_MODULE</type>
+  <arg>/opt/hpc/external/prrte/lib/libprrte.so.2</arg>
+  <arg>0x7f94a2165000</arg>
+  <arg>0x7f94a2508d7f</arg>
+  <arg>5</arg>
+  <severity>INFO</severity>
+  <timestamp>Wed Nov  3 09:00:50 2021</timestamp>
+</msg>
+<msg id="10" tool="tc">
+  <type>LOAD_MODULE</type>
+  <arg>/opt/hpc/external/pmix/lib/libpmix.so.0</arg>
+  <arg>0x7f94a1c3b000</arg>
+  <arg>0x7f94a20e8807</arg>
+  <arg>6</arg>
+  <severity>INFO</severity>
+  <timestamp>Wed Nov  3 09:00:50 2021</timestamp>
+</msg>
+<msg id="11" tool="tc">
+  <type>LOAD_MODULE</type>
+  <arg>/lib64/libutil.so.1</arg>
+  <arg>0x7f94a19d2000</arg>
+  <arg>0x7f94a1bd510f</arg>
+  <arg>7</arg>
+  <severity>INFO</severity>
+  <timestamp>Wed Nov  3 09:00:50 2021</timestamp>
+</msg>
+<msg id="12" tool="tc">
+  <type>LOAD_MODULE</type>
+  <arg>/lib64/libdl.so.2</arg>
+  <arg>0x7f94a17c4000</arg>
+  <arg>0x7f94a19c712f</arg>
+  <arg>8</arg>
+  <severity>INFO</severity>
+  <timestamp>Wed Nov  3 09:00:50 2021</timestamp>
+</msg>
+<msg id="13" tool="tc">
+  <type>LOAD_MODULE</type>
+  <arg>/opt/hpc/local/libevent/lib/libevent_core-2.1.so.6</arg>
+  <arg>0x7f94a1586000</arg>
+  <arg>0x7f94a17bc097</arg>
+  <arg>9</arg>
+  <severity>INFO</severity>
+  <timestamp>Wed Nov  3 09:00:50 2021</timestamp>
+</msg>
+<msg id="14" tool="tc">
+  <type>LOAD_MODULE</type>
+  <arg>/opt/hpc/local/libevent/lib/libevent_pthreads-2.1.so.6</arg>
+  <arg>0x7f94a1383000</arg>
+  <arg>0x7f94a15850c7</arg>
+  <arg>10</arg>
+  <severity>INFO</severity>
+  <timestamp>Wed Nov  3 09:00:50 2021</timestamp>
+</msg>
+<msg id="15" tool="tc">
+  <type>LOAD_MODULE</type>
+  <arg>/lib64/libcrypto.so.1.1</arg>
+  <arg>0x7f94a0e94000</arg>
+  <arg>0x7f94a1379fff</arg>
+  <arg>11</arg>
+  <severity>INFO</severity>
+  <timestamp>Wed Nov  3 09:00:50 2021</timestamp>
+</msg>
+<msg id="16" tool="tc">
+  <type>LOAD_MODULE</type>
+  <arg>/opt/hpc/local/hwloc/lib/libhwloc.so.15</arg>
+  <arg>0x7f94a0c47000</arg>
+  <arg>0x7f94a0e93847</arg>
+  <arg>12</arg>
+  <severity>INFO</severity>
+  <timestamp>Wed Nov  3 09:00:50 2021</timestamp>
+</msg>
+<msg id="17" tool="tc">
+  <type>LOAD_MODULE</type>
+  <arg>/lib64/libm.so.6</arg>
+  <arg>0x7f94a08c5000</arg>
+  <arg>0x7f94a0c4613f</arg>
+  <arg>13</arg>
+  <severity>INFO</severity>
+  <timestamp>Wed Nov  3 09:00:50 2021</timestamp>
+</msg>
+<msg id="18" tool="tc">
+  <type>LOAD_MODULE</type>
+  <arg>/lib64/libpthread.so.0</arg>
+  <arg>0x7f94a06a5000</arg>
+  <arg>0x7f94a08c44bf</arg>
+  <arg>14</arg>
+  <severity>INFO</severity>
+  <timestamp>Wed Nov  3 09:00:50 2021</timestamp>
+</msg>
+<msg id="19" tool="tc">
+  <type>LOAD_MODULE</type>
+  <arg>/lib64/libc.so.6</arg>
+  <arg>0x7f94a02e0000</arg>
+  <arg>0x7f94a06a473f</arg>
+  <arg>15</arg>
+  <severity>INFO</severity>
+  <timestamp>Wed Nov  3 09:00:50 2021</timestamp>
+</msg>
+<msg id="20" tool="tc">
+  <type>LOAD_MODULE</type>
+  <arg>/lib64/libz.so.1</arg>
+  <arg>0x7f94a008a000</arg>
+  <arg>0x7f94a02a0007</arg>
+  <arg>16</arg>
+  <severity>INFO</severity>
+  <timestamp>Wed Nov  3 09:00:50 2021</timestamp>
+</msg>
+<msg id="21" tool="tc">
+  <type>UNLOAD_MODULE</type>
+  <arg>/opt/hpc/external/prrte/bin/prte</arg>
+  <arg>2</arg>
+  <severity>INFO</severity>
+  <timestamp>Wed Nov  3 09:00:53 2021</timestamp>
+</msg>
+<msg id="22" tool="tc">
+  <type>UNLOAD_MODULE</type>
+  <arg>/lib64/ld-linux-x86-64.so.2</arg>
+  <arg>3</arg>
+  <severity>INFO</severity>
+  <timestamp>Wed Nov  3 09:00:53 2021</timestamp>
+</msg>
+<msg id="23" tool="tc">
+  <type>UNLOAD_MODULE</type>
+  <arg>[vdso]</arg>
+  <arg>4</arg>
+  <severity>INFO</severity>
+  <timestamp>Wed Nov  3 09:00:53 2021</timestamp>
+</msg>
+<msg id="24" tool="tc">
+  <type>UNLOAD_MODULE</type>
+  <arg>/opt/hpc/external/prrte/lib/libprrte.so.2</arg>
+  <arg>5</arg>
+  <severity>INFO</severity>
+  <timestamp>Wed Nov  3 09:00:53 2021</timestamp>
+</msg>
+<msg id="25" tool="tc">
+  <type>UNLOAD_MODULE</type>
+  <arg>/opt/hpc/external/pmix/lib/libpmix.so.0</arg>
+  <arg>6</arg>
+  <severity>INFO</severity>
+  <timestamp>Wed Nov  3 09:00:53 2021</timestamp>
+</msg>
+<msg id="26" tool="tc">
+  <type>UNLOAD_MODULE</type>
+  <arg>/lib64/libutil.so.1</arg>
+  <arg>7</arg>
+  <severity>INFO</severity>
+  <timestamp>Wed Nov  3 09:00:53 2021</timestamp>
+</msg>
+<msg id="27" tool="tc">
+  <type>UNLOAD_MODULE</type>
+  <arg>/lib64/libdl.so.2</arg>
+  <arg>8</arg>
+  <severity>INFO</severity>
+  <timestamp>Wed Nov  3 09:00:53 2021</timestamp>
+</msg>
+<msg id="28" tool="tc">
+  <type>UNLOAD_MODULE</type>
+  <arg>/opt/hpc/local/libevent/lib/libevent_core-2.1.so.6</arg>
+  <arg>9</arg>
+  <severity>INFO</severity>
+  <timestamp>Wed Nov  3 09:00:53 2021</timestamp>
+</msg>
+<msg id="29" tool="tc">
+  <type>UNLOAD_MODULE</type>
+  <arg>/opt/hpc/local/libevent/lib/libevent_pthreads-2.1.so.6</arg>
+  <arg>10</arg>
+  <severity>INFO</severity>
+  <timestamp>Wed Nov  3 09:00:53 2021</timestamp>
+</msg>
+<msg id="30" tool="tc">
+  <type>UNLOAD_MODULE</type>
+  <arg>/lib64/libcrypto.so.1.1</arg>
+  <arg>11</arg>
+  <severity>INFO</severity>
+  <timestamp>Wed Nov  3 09:00:53 2021</timestamp>
+</msg>
+<msg id="31" tool="tc">
+  <type>UNLOAD_MODULE</type>
+  <arg>/opt/hpc/local/hwloc/lib/libhwloc.so.15</arg>
+  <arg>12</arg>
+  <severity>INFO</severity>
+  <timestamp>Wed Nov  3 09:00:53 2021</timestamp>
+</msg>
+<msg id="32" tool="tc">
+  <type>UNLOAD_MODULE</type>
+  <arg>/lib64/libm.so.6</arg>
+  <arg>13</arg>
+  <severity>INFO</severity>
+  <timestamp>Wed Nov  3 09:00:53 2021</timestamp>
+</msg>
+<msg id="33" tool="tc">
+  <type>UNLOAD_MODULE</type>
+  <arg>/lib64/libpthread.so.0</arg>
+  <arg>14</arg>
+  <severity>INFO</severity>
+  <timestamp>Wed Nov  3 09:00:53 2021</timestamp>
+</msg>
+<msg id="34" tool="tc">
+  <type>UNLOAD_MODULE</type>
+  <arg>/lib64/libc.so.6</arg>
+  <arg>15</arg>
+  <severity>INFO</severity>
+  <timestamp>Wed Nov  3 09:00:53 2021</timestamp>
+</msg>
+<msg id="35" tool="tc">
+  <type>UNLOAD_MODULE</type>
+  <arg>/lib64/libz.so.1</arg>
+  <arg>16</arg>
+  <severity>INFO</severity>
+  <timestamp>Wed Nov  3 09:00:53 2021</timestamp>
+</msg>
+<msg id="36" tool="tc">
+  <type>PROCESS_TERMINATE</type>
+  <arg>/opt/hpc/external/prrte/bin/prte</arg>
+  <arg>401</arg>
+  <severity>INFO</severity>
+  <timestamp>Wed Nov  3 09:00:53 2021</timestamp>
+</msg>
+<msg id="37" tool="tc">
+  <type>SINGLE_THREAD</type>
+  <severity>WARNING</severity>
+  <timestamp>Wed Nov  3 09:00:53 2021</timestamp>
+</msg>
+<msg id="38" tool="tc">
+  <type>ANALYSIS_COMPLETE</type>
+  <severity>INFO</severity>
+  <timestamp>Wed Nov  3 09:00:53 2021</timestamp>
+</msg>
+<msg id="39" tool="tc">
+  <type>STOP</type>
+  <severity>INFO</severity>
+  <timestamp>Wed Nov  3 09:00:53 2021</timestamp>
+</msg>
+<msg id="40" tool="runtool">
+  <type>app-exit-code</type>
+  <arg>1</arg>
+</msg>
+<msg id="41" tool="runtool">
+  <type>marker-file</type>
+  <arg>/opt/hpc/build/p4est_dynres/applications/r000ti2/r000ti2.inspxe</arg>
+</msg>
+<msg id="42" tool="runtool">
+  <type>collector-done</type>
+</msg>
+<msg id="43" tool="runtool">
+  <type>log-end</type>
+  <arg>2021/11/03 09:00:57</arg>
+</msg>
+
+</log>
+

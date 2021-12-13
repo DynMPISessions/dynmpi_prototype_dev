@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<feedback>
+ <message severity="verbose">Analysis started...</message>
+ <nop/>
+ <message severity="info">Collection started. To stop the collection, either press CTRL-C or enter from another console window: inspxe-cl -r /opt/hpc/build/p4est_dynres/applications/r001mi3 -command stop.</message>
+ <nop/>
+ <message severity="verbose">Result file: /opt/hpc/build/p4est_dynres/applications/r001mi3/r001mi3.inspxe </message>
+ <nop/>
+ <message severity="verbose">Analysis started for /opt/hpc/external/prrte/bin/prte (pid = 416) </message>
+ <nop/>
+ <message severity="verbose">Loaded module: /opt/hpc/external/prrte/bin/prte, address range [0x400000-0x60c887] </message>
+ <nop/>
+ <message severity="verbose">Loaded module: /lib64/ld-linux-x86-64.so.2, address range [0x7fef18818000-0x7fef18a461cf], minimal analysis </message>
+ <nop/>
+ <message severity="verbose">Loaded module: [vdso], address range [0x7ffef0bec000-0x7ffef0becfde], minimal analysis </message>
+ <nop/>
+ <message severity="verbose">Loaded module: /opt/hpc/external/prrte/lib/libprrte.so.2, address range [0x7fef00bd4000-0x7fef00f77d7f] </message>
+ <nop/>
+ <message severity="verbose">Loaded module: /opt/hpc/external/pmix/lib/libpmix.so.0, address range [0x7fef005da000-0x7fef00a87807] </message>
+ <nop/>
+ <message severity="verbose">Loaded module: /lib64/libutil.so.1, address range [0x7fef0028b000-0x7fef0048e10f] </message>
+ <nop/>
+ <message severity="verbose">Loaded module: /lib64/libdl.so.2, address range [0x7feefffeb000-0x7fef001ee12f], minimal analysis </message>
+ <nop/>
+ <message severity="verbose">Loaded module: /opt/hpc/local/libevent/lib/libevent_core-2.1.so.6, address range [0x7feeffc37000-0x7feeffe6d097] </message>
+ <nop/>
+ <message severity="verbose">Loaded module: /opt/hpc/local/libevent/lib/libevent_pthreads-2.1.so.6, address range [0x7feeff98f000-0x7feeffb910c7] </message>
+ <nop/>
+ <message severity="verbose">Loaded module: /lib64/libcrypto.so.1.1, address range [0x7feeff3f0000-0x7feeff8d5fff] </message>
+ <nop/>
+ <message severity="verbose">Loaded module: /opt/hpc/local/hwloc/lib/libhwloc.so.15, address range [0x7feeff02f000-0x7feeff27b847] </message>
+ <nop/>
+ <message severity="verbose">Loaded module: /lib64/libm.so.6, address range [0x7feefec2c000-0x7feefefad13f] </message>
+ <nop/>
+ <message severity="verbose">Loaded module: /lib64/libpthread.so.0, address range [0x7feefe8fa000-0x7feefeb194bf] </message>
+ <nop/>
+ <message severity="verbose">Loaded module: /lib64/libc.so.6, address range [0x7feefe494000-0x7feefe85873f] </message>
+ <nop/>
+ <message severity="verbose">Loaded module: /lib64/libz.so.1, address range [0x7feefe14f000-0x7feefe365007] </message>
+ <nop/>
+ <message severity="verbose">Process /opt/hpc/external/prrte/bin/prte exited with code 1. Leak analysis starting. Please wait... </message>
+ <nop/>
+ <message severity="verbose">Unloaded module: /opt/hpc/external/prrte/bin/prte </message>
+ <nop/>
+ <message severity="verbose">Unloaded module: /lib64/ld-linux-x86-64.so.2 </message>
+ <nop/>
+ <message severity="verbose">Unloaded module: [vdso] </message>
+ <nop/>
+ <message severity="verbose">Unloaded module: /opt/hpc/external/prrte/lib/libprrte.so.2 </message>
+ <nop/>
+ <message severity="verbose">Unloaded module: /opt/hpc/external/pmix/lib/libpmix.so.0 </message>
+ <nop/>
+ <message severity="verbose">Unloaded module: /lib64/libutil.so.1 </message>
+ <nop/>
+ <message severity="verbose">Unloaded module: /lib64/libdl.so.2 </message>
+ <nop/>
+ <message severity="verbose">Unloaded module: /opt/hpc/local/libevent/lib/libevent_core-2.1.so.6 </message>
+ <nop/>
+ <message severity="verbose">Unloaded module: /opt/hpc/local/libevent/lib/libevent_pthreads-2.1.so.6 </message>
+ <nop/>
+ <message severity="verbose">Unloaded module: /lib64/libcrypto.so.1.1 </message>
+ <nop/>
+ <message severity="verbose">Unloaded module: /opt/hpc/local/hwloc/lib/libhwloc.so.15 </message>
+ <nop/>
+ <message severity="verbose">Unloaded module: /lib64/libm.so.6 </message>
+ <nop/>
+ <message severity="verbose">Unloaded module: /lib64/libpthread.so.0 </message>
+ <nop/>
+ <message severity="verbose">Unloaded module: /lib64/libc.so.6 </message>
+ <nop/>
+ <message severity="verbose">Unloaded module: /lib64/libz.so.1 </message>
+ <nop/>
+ <message severity="verbose">Completed analysis for /opt/hpc/external/prrte/bin/prte </message>
+ <nop/>
+ <message severity="verbose">Application exit code: 1 </message>
+ <nop/>
+ <message severity="verbose">Result file: /opt/hpc/build/p4est_dynres/applications/r001mi3/r001mi3.inspxe </message>
+ <nop/>
+ <message severity="verbose">Analysis completed</message>
+ <nop/>
+ <message severity="info">  </message>
+ <nop/>
+ <message severity="info">28 new problem(s) found </message>
+ <nop/>
+ <message severity="info">    5 Invalid memory access problem(s) detected </message>
+ <nop/>
+ <message severity="info">    22 Memory leak problem(s) detected </message>
+ <nop/>
+ <message severity="info">    1 Memory not deallocated problem(s) detected </message>
+ <nop/>
+</feedback>

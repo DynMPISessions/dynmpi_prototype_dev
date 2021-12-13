@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<feedback>
+ <message severity="verbose">Analysis started...</message>
+ <nop/>
+ <message severity="info">Collection started. To stop the collection, either press CTRL-C or enter from another console window: inspxe-cl -r /opt/hpc/build/p4est_dynres/applications/r000ti2 -command stop.</message>
+ <nop/>
+ <message severity="verbose">Result file: /opt/hpc/build/p4est_dynres/applications/r000ti2/r000ti2.inspxe </message>
+ <nop/>
+ <message severity="verbose">Found target process /opt/hpc/external/prrte/bin/prte (PID = 401). Analysis started... </message>
+ <nop/>
+ <message severity="verbose">Loaded module: /opt/hpc/external/prrte/bin/prte. </message>
+ <nop/>
+ <message severity="verbose">Loaded module: /lib64/ld-linux-x86-64.so.2. </message>
+ <nop/>
+ <message severity="verbose">Loaded module: [vdso]. </message>
+ <nop/>
+ <message severity="verbose">Loaded module: /opt/hpc/external/prrte/lib/libprrte.so.2. </message>
+ <nop/>
+ <message severity="verbose">Loaded module: /opt/hpc/external/pmix/lib/libpmix.so.0. </message>
+ <nop/>
+ <message severity="verbose">Loaded module: /lib64/libutil.so.1. </message>
+ <nop/>
+ <message severity="verbose">Loaded module: /lib64/libdl.so.2. </message>
+ <nop/>
+ <message severity="verbose">Loaded module: /opt/hpc/local/libevent/lib/libevent_core-2.1.so.6. </message>
+ <nop/>
+ <message severity="verbose">Loaded module: /opt/hpc/local/libevent/lib/libevent_pthreads-2.1.so.6. </message>
+ <nop/>
+ <message severity="verbose">Loaded module: /lib64/libcrypto.so.1.1. </message>
+ <nop/>
+ <message severity="verbose">Loaded module: /opt/hpc/local/hwloc/lib/libhwloc.so.15. </message>
+ <nop/>
+ <message severity="verbose">Loaded module: /lib64/libm.so.6. </message>
+ <nop/>
+ <message severity="verbose">Loaded module: /lib64/libpthread.so.0. </message>
+ <nop/>
+ <message severity="verbose">Loaded module: /lib64/libc.so.6. </message>
+ <nop/>
+ <message severity="verbose">Loaded module: /lib64/libz.so.1. </message>
+ <nop/>
+ <message severity="verbose">Unloaded module: /opt/hpc/external/prrte/bin/prte. </message>
+ <nop/>
+ <message severity="verbose">Unloaded module: /lib64/ld-linux-x86-64.so.2. </message>
+ <nop/>
+ <message severity="verbose">Unloaded module: [vdso]. </message>
+ <nop/>
+ <message severity="verbose">Unloaded module: /opt/hpc/external/prrte/lib/libprrte.so.2. </message>
+ <nop/>
+ <message severity="verbose">Unloaded module: /opt/hpc/external/pmix/lib/libpmix.so.0. </message>
+ <nop/>
+ <message severity="verbose">Unloaded module: /lib64/libutil.so.1. </message>
+ <nop/>
+ <message severity="verbose">Unloaded module: /lib64/libdl.so.2. </message>
+ <nop/>
+ <message severity="verbose">Unloaded module: /opt/hpc/local/libevent/lib/libevent_core-2.1.so.6. </message>
+ <nop/>
+ <message severity="verbose">Unloaded module: /opt/hpc/local/libevent/lib/libevent_pthreads-2.1.so.6. </message>
+ <nop/>
+ <message severity="verbose">Unloaded module: /lib64/libcrypto.so.1.1. </message>
+ <nop/>
+ <message severity="verbose">Unloaded module: /opt/hpc/local/hwloc/lib/libhwloc.so.15. </message>
+ <nop/>
+ <message severity="verbose">Unloaded module: /lib64/libm.so.6. </message>
+ <nop/>
+ <message severity="verbose">Unloaded module: /lib64/libpthread.so.0. </message>
+ <nop/>
+ <message severity="verbose">Unloaded module: /lib64/libc.so.6. </message>
+ <nop/>
+ <message severity="verbose">Unloaded module: /lib64/libz.so.1. </message>
+ <nop/>
+ <message severity="verbose">Process /opt/hpc/external/prrte/bin/prte (PID = 401) has terminated. </message>
+ <nop/>
+ <message severity="warning">Failed to find more than one thread. Ensure that your program is multithreaded.</message>
+ <nop/>
+ <message severity="verbose">Application exit code: 1 </message>
+ <nop/>
+ <message severity="verbose">Result file: /opt/hpc/build/p4est_dynres/applications/r000ti2/r000ti2.inspxe </message>
+ <nop/>
+ <message severity="verbose">Analysis completed</message>
+ <nop/>
+ <message severity="info">  </message>
+ <nop/>
+ <message severity="info">0 new problem(s) found </message>
+ <nop/>
+</feedback>

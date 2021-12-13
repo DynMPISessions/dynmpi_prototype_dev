@@ -1,0 +1,41 @@
+
+=== Start: [2021/11/03 09:03:20] === 
+Analysis started...
+Result file: /opt/hpc/build/p4est_dynres/applications/r001mi3/r001mi3.inspxe 
+Analysis started for /opt/hpc/external/prrte/bin/prte (pid = 416) 
+Loaded module: /opt/hpc/external/prrte/bin/prte, address range [0x400000-0x60c887] 
+Loaded module: /lib64/ld-linux-x86-64.so.2, address range [0x7fef18818000-0x7fef18a461cf], minimal analysis 
+Loaded module: [vdso], address range [0x7ffef0bec000-0x7ffef0becfde], minimal analysis 
+Loaded module: /opt/hpc/external/prrte/lib/libprrte.so.2, address range [0x7fef00bd4000-0x7fef00f77d7f] 
+Loaded module: /opt/hpc/external/pmix/lib/libpmix.so.0, address range [0x7fef005da000-0x7fef00a87807] 
+Loaded module: /lib64/libutil.so.1, address range [0x7fef0028b000-0x7fef0048e10f] 
+Loaded module: /lib64/libdl.so.2, address range [0x7feefffeb000-0x7fef001ee12f], minimal analysis 
+Loaded module: /opt/hpc/local/libevent/lib/libevent_core-2.1.so.6, address range [0x7feeffc37000-0x7feeffe6d097] 
+Loaded module: /opt/hpc/local/libevent/lib/libevent_pthreads-2.1.so.6, address range [0x7feeff98f000-0x7feeffb910c7] 
+Loaded module: /lib64/libcrypto.so.1.1, address range [0x7feeff3f0000-0x7feeff8d5fff] 
+Loaded module: /opt/hpc/local/hwloc/lib/libhwloc.so.15, address range [0x7feeff02f000-0x7feeff27b847] 
+Loaded module: /lib64/libm.so.6, address range [0x7feefec2c000-0x7feefefad13f] 
+Loaded module: /lib64/libpthread.so.0, address range [0x7feefe8fa000-0x7feefeb194bf] 
+Loaded module: /lib64/libc.so.6, address range [0x7feefe494000-0x7feefe85873f] 
+Loaded module: /lib64/libz.so.1, address range [0x7feefe14f000-0x7feefe365007] 
+Process /opt/hpc/external/prrte/bin/prte exited with code 1. Leak analysis starting. Please wait... 
+Unloaded module: /opt/hpc/external/prrte/bin/prte 
+Unloaded module: /lib64/ld-linux-x86-64.so.2 
+Unloaded module: [vdso] 
+Unloaded module: /opt/hpc/external/prrte/lib/libprrte.so.2 
+Unloaded module: /opt/hpc/external/pmix/lib/libpmix.so.0 
+Unloaded module: /lib64/libutil.so.1 
+Unloaded module: /lib64/libdl.so.2 
+Unloaded module: /opt/hpc/local/libevent/lib/libevent_core-2.1.so.6 
+Unloaded module: /opt/hpc/local/libevent/lib/libevent_pthreads-2.1.so.6 
+Unloaded module: /lib64/libcrypto.so.1.1 
+Unloaded module: /opt/hpc/local/hwloc/lib/libhwloc.so.15 
+Unloaded module: /lib64/libm.so.6 
+Unloaded module: /lib64/libpthread.so.0 
+Unloaded module: /lib64/libc.so.6 
+Unloaded module: /lib64/libz.so.1 
+Completed analysis for /opt/hpc/external/prrte/bin/prte 
+Application exit code: 1 
+Result file: /opt/hpc/build/p4est_dynres/applications/r001mi3/r001mi3.inspxe 
+Analysis completed
+=== End: [2021/11/03 09:03:29] === 

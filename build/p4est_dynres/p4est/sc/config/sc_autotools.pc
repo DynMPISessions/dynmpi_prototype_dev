@@ -1,0 +1,17 @@
+
+prefix=/opt/hpc/build/p4est_dynres/p4est/local
+exec_prefix=${prefix}
+libdir=${exec_prefix}/lib
+includedir=${prefix}/include
+
+libsc_CC=/opt/hpc/external/ompi/bin/mpicc
+libsc_CFLAGS= -g -O2 -std=gnu99
+
+Name: libsc
+Description: The SC library supports parallel scientific applications.
+Version: 2.3.2
+URL: https://www.p4est.org/
+
+Cflags: -I${prefix}/include
+Libs: -L${exec_prefix}/lib -lsc
+Libs.private:    -lm   

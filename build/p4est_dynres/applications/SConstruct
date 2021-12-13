@@ -1,0 +1,162 @@
+#! /usr/bin/python2
+
+import os
+import sys
+
+#
+# set possible variables
+#
+vars = Variables()
+
+env = Environment(variables=vars, ENV = { 'PATH' : os.environ['PATH'],
+                                          'HOME' : os.environ['HOME']})
+
+# SWE specific variables
+vars.AddVariables(
+  PathVariable( 'buildDir', 'where to build the code', 'build', PathVariable.PathIsDirCreate ),
+
+  EnumVariable( 'example', 'which application to build', 'mpidynres2d',
+                allowed_values=('mpidynres2d', 'incProcs', 'mpidynres3d', 
+                    'benchConstProcsFixed', 'benchConstProcsSplit', 'benchConstProcsAdapt', 
+                    'benchIncProcsFixed', 'benchIncProcsSplit', 
+                    'benchMpidynresFixed', 'benchOmpidynresFixed', 'benchMpidynresSplit', 
+                    'benchDecMpidynresFixed',
+                    'benchAdapt', 'tests',
+                    'benchOmpidynresSynthetic')
+              ),
+
+  EnumVariable( 'compileMode', 'whether to compile with debug options', 'release',
+                allowed_values=('debug', 'release')
+              ),
+
+  BoolVariable( 'netCDF', 'whether to use the netCDF library (required for reading scenario data from files)', 0),
+
+  PathVariable( 'netCDFDir', 'location of netCDF', None)
+)
+
+
+# set environment
+env = Environment(ENV = {'PATH': os.environ['PATH']},
+        variables=vars)
+
+# generate help text
+Help("""Compile the example applications for dynamic resource management on p4est.
+The following options are available:\n""" + vars.GenerateHelpText(env))
+
+# handle unknown, maybe misspelled variables
+unknownVariables = vars.UnknownVariables()
+
+# exit in the case of unknown variables
+if unknownVariables:
+  print >> sys.stderr, "*** The following build variables are unknown:", unknownVariables.keys()
+  Exit(1)
+
+#
+# precompiler, compiler and linker flags
+#
+
+env['CXX'] = env['LINKERFORPROGRAMS'] = env.Detect(['mpiCC', 'mpicxx'])
+env.Append(HOME = ['/home/mpiuser'])
+env['CXX'] = env['LINKERFORPROGRAMS'] = '/usr/bin/g++'
+# set (pre-)compiler flags for the compile modes
+if env['compileMode'] == 'debug':
+  env.Append(CPPDEFINES=['DEBUG'])
+  env.Append(CCFLAGS=['-O0','-g3','-Wall', '-fno-inline', '-std=gnu++11'])
+
+elif env['compileMode'] == 'release':
+  env.Append(CPPDEFINES=['NDEBUG'])
+  env.Append(CCFLAGS=['-O3','-mtune=native', '-std=gnu++11'])
+  #env.Append(CCFLAGS=['-O1','-mtune=native', '-std=gnu++11'])
+
+# path of project root
+project_root = os.getcwd()
+
+# Add source directory to include path (important for subdirectories)
+env.Append(CPPPATH=['.'])
+env.Append(CPPPATH=['include'])
+env.Append(CPPPATH=[project_root + '/../p4est/sc/libb64'])
+env.Append(CPPPATH=[project_root + '/../p4est/sc/src/'])
+env.Append(CPPPATH=[project_root + '/../p4est/src/'])
+env.Append(CPPPATH=[project_root + '/../p4est/local/include/'])
+env.Append(CPPPATH=[project_root + '/../libmpidynres/build/include/'])
+env.Append(CPPPATH=[project_root + '/../libmpidynres/src/'])
+env.Append(CPPPATH=['/opt/hpc/external/ompi/include'])
+
+
+
+env.Append(LIBPATH=['.'])
+env.Append(LIBPATH=['include'])
+env.Append(LIBPATH=['/opt/hpc/build/lib/lib'])
+env.Append(LIBPATH=['/opt/hpc/external/ompi/lib'])
+env.Append(LIBPATH=[project_root + '/../p4est/local/lib/'])
+env.Append(LIBPATH=[project_root + '/../libmpidynres/build/lib/'])
+
+# link with p4est, libsc, and libmpidynres
+env.Append(LINKFLAGS=['-lp4est', '-lsc', '-lz', '-lmpidynres', '-lmpi']) #,
+
+
+if 'netCDF' in env:
+  if env['netCDF']:
+    env.Append(LIBS=['netcdf'])
+    env.Append(CPPDEFINES=['NETCDF'])
+
+if 'netCDFDir' in env:
+  env.Append(CPPPATH=[env['netCDFDir']+'/include'])
+  env.Append(LIBPATH=[os.path.join(env['netCDFDir'], 'lib')])
+  env.Append(RPATH=[os.path.join(env['netCDFDir'], 'lib')])
+
+#
+# setup the program name and the build directory
+#
+program_name = 'SWE_p4est'
+
+program_name += '_'+env['example']
+
+program_name += '_'+env['compileMode']
+
+# build directory
+build_dir = env['buildDir']+'/build_'+program_name
+
+# get the src-code files
+env.src_files = []
+
+if env['example'] == 'mpidynres2d':
+  sourceFiles = ['writer/p4est_vtk_writer.cpp',
+                 'examples/p4est_mpidynres.cpp']
+elif env['example'] == 'incProcs':
+  sourceFiles = ['writer/p4est_vtk_writer.cpp',
+                 'examples/p4est_dynres.cpp']
+elif env['example'] == 'mpidynres3d':
+  sourceFiles = ['writer/p8est_vtk_writer.cpp',
+                 'examples/p8est_mpidynres.cpp']
+elif env['example'] == 'benchConstProcsFixed':
+  sourceFiles = ['benchmarks/p4est_benchmark_constProcs_fixed.cpp']
+elif env['example'] == 'benchConstProcsSplit':
+  sourceFiles = ['benchmarks/p4est_benchmark_constProcs_split.cpp']
+elif env['example'] == 'benchConstProcsAdapt':
+  sourceFiles = ['benchmarks/p4est_benchmark_constProcs_adapt.cpp']
+elif env['example'] == 'benchIncProcsFixed':
+  sourceFiles = ['benchmarks/p4est_benchmark_incProcs_fixed.cpp']
+elif env['example'] == 'benchIncProcsSplit':
+  sourceFiles = ['benchmarks/p4est_benchmark_incProcs_split.cpp']
+elif env['example'] == 'benchMpidynresFixed':
+  sourceFiles = ['benchmarks/p4est_benchmark_mpidynres_fixed.cpp']
+elif env['example'] == 'benchOmpidynresFixed':
+  sourceFiles = ['benchmarks/p4est_benchmark_ompidynres_fixed.cpp']
+elif env['example'] == 'benchOmpidynresSynthetic':
+  sourceFiles = ['benchmarks/benchmark_ompidynres_synthetic.cpp']
+elif env['example'] == 'benchMpidynresSplit':
+  sourceFiles = ['benchmarks/p4est_benchmark_mpidynres_split.cpp']
+elif env['example'] == 'benchDecMpidynresFixed':
+  sourceFiles = ['benchmarks/p4est_benchmark_decMpidynres_fixed.cpp']
+elif env['example'] == 'benchAdapt':
+  sourceFiles = ['benchmarks/p4est_benchmark_adaptive.cpp']
+elif env['example'] == 'tests':
+  sourceFiles = ['writer/p4est_vtk_writer.cpp',
+                 'tests/p4est_tests.cpp']
+  
+for i in sourceFiles:
+  env.src_files.append(env.Object(i))
+
+# build the program
+env.Program('build/'+program_name, env.src_files)
