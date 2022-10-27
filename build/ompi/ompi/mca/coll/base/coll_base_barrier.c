@@ -83,7 +83,7 @@ ompi_coll_base_sendrecv_zero( int dest, int stag,
             if( MPI_ERR_PROC_FAILED_PENDING == rc ) {
                 rc = MPI_ERR_PROC_FAILED;
             }
-        } else /* this 'else' intentionaly spills outside the ifdef */
+        } else /* this 'else' intentionally spills outside the ifdef */
 #endif /* OPAL_ENABLE_FT_MPI */
         ompi_request_free(&req);
     }
@@ -95,7 +95,7 @@ ompi_coll_base_sendrecv_zero( int dest, int stag,
 }
 
 /*
- * Barrier is ment to be a synchronous operation, as some BTLs can mark
+ * Barrier is meant to be a synchronous operation, as some BTLs can mark
  * a request done before its passed to the NIC and progress might not be made
  * elsewhere we cannot allow a process to exit the barrier until its last
  * [round of] sends are completed.
@@ -110,7 +110,7 @@ ompi_coll_base_sendrecv_zero( int dest, int stag,
 /*
  * Simple double ring version of barrier
  *
- * synchronous gurantee made by last ring of sends are synchronous
+ * synchronous guarantee made by last ring of sends are synchronous
  *
  */
 int ompi_coll_base_barrier_intra_doublering(struct ompi_communicator_t *comm,
@@ -125,7 +125,7 @@ int ompi_coll_base_barrier_intra_doublering(struct ompi_communicator_t *comm,
 
     OPAL_OUTPUT((ompi_coll_base_framework.framework_output,"ompi_coll_base_barrier_intra_doublering rank %d", rank));
 
-    left = ((rank-1)%size);
+    left = ((size+rank-1)%size);
     right = ((rank+1)%size);
 
     if (rank > 0) { /* receive message from the left */
@@ -189,7 +189,7 @@ int ompi_coll_base_barrier_intra_recursivedoubling(struct ompi_communicator_t *c
                                                     mca_coll_base_module_t *module)
 {
     int rank, size, adjsize, err, line, mask, remote;
-
+    
     size = ompi_comm_size(comm);
     if( 1 == size )
         return OMPI_SUCCESS;
@@ -226,6 +226,7 @@ int ompi_coll_base_barrier_intra_recursivedoubling(struct ompi_communicator_t *c
     /* exchange messages */
     if ( rank < adjsize ) {
         mask = 0x1;
+        //printf("rank %d: entering sendrecv_zero\n", rank);
         while ( mask < adjsize ) {
             remote = rank ^ mask;
             mask <<= 1;
@@ -237,6 +238,7 @@ int ompi_coll_base_barrier_intra_recursivedoubling(struct ompi_communicator_t *c
                                                comm);
             if (err != MPI_SUCCESS) { line = __LINE__; goto err_hndl;}
         }
+        //printf("rank %d: finished sendrecv_zero\n", rank);
     }
 
     /* non-power of 2 case */
@@ -356,11 +358,12 @@ int ompi_coll_base_barrier_intra_basic_linear(struct ompi_communicator_t *comm,
 
     /* All non-root send & receive zero-length message. */
     if (rank > 0) {
+        //printf("rank %d: send\n", rank);
         err = MCA_PML_CALL(send (NULL, 0, MPI_BYTE, 0,
                                  MCA_COLL_BASE_TAG_BARRIER,
                                  MCA_PML_BASE_SEND_STANDARD, comm));
         if (MPI_SUCCESS != err) { line = __LINE__; goto err_hndl; }
-
+        //printf("rank %d: recv\n", rank);
         err = MCA_PML_CALL(recv (NULL, 0, MPI_BYTE, 0,
                                  MCA_COLL_BASE_TAG_BARRIER,
                                  comm, MPI_STATUS_IGNORE));
@@ -370,10 +373,12 @@ int ompi_coll_base_barrier_intra_basic_linear(struct ompi_communicator_t *comm,
     /* The root collects and broadcasts the messages. */
 
     else {
+        //printf("rank %d: get_reqs\n", rank);
         requests = ompi_coll_base_comm_get_reqs(module->base_data, size);
         if( NULL == requests ) { err = OMPI_ERR_OUT_OF_RESOURCE; line = __LINE__; goto err_hndl; }
-
+        
         for (i = 1; i < size; ++i) {
+            //printf("rank %d: i_recv: %d\n", rank, i);
             err = MCA_PML_CALL(irecv(NULL, 0, MPI_BYTE, MPI_ANY_SOURCE,
                                      MCA_COLL_BASE_TAG_BARRIER, comm,
                                      &(requests[i])));
@@ -384,13 +389,14 @@ int ompi_coll_base_barrier_intra_basic_linear(struct ompi_communicator_t *comm,
         requests = NULL;  /* we're done the requests array is clean */
 
         for (i = 1; i < size; ++i) {
+            //printf("rank %d: send: %d\n", rank, i);
             err = MCA_PML_CALL(send(NULL, 0, MPI_BYTE, i,
                                     MCA_COLL_BASE_TAG_BARRIER,
                                     MCA_PML_BASE_SEND_STANDARD, comm));
             if (MPI_SUCCESS != err) { line = __LINE__; goto err_hndl; }
         }
     }
-
+    //printf("rank %d: All done\n", rank);
     /* All done */
     return MPI_SUCCESS;
  err_hndl:

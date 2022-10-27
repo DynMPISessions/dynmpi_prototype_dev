@@ -56,7 +56,6 @@ static opal_hash_table_t ompi_proc_hash;
 ompi_proc_t* ompi_proc_local_proc = NULL;
 
 static void ompi_proc_construct(ompi_proc_t* proc);
-//static void ompi_proc_destruct(ompi_proc_t* proc);
 static ompi_proc_t *ompi_proc_for_name_nolock (const opal_process_name_t proc_name);
 
 OBJ_CLASS_INSTANCE(
@@ -330,7 +329,7 @@ int ompi_proc_complete_init(void)
                 continue;
             }
             opal_proc.vpid=local_rank;
-            if( NULL!= ompi_proc_lookup(opal_proc)){
+            if( NULL != ompi_proc_lookup(opal_proc)){
                 continue;
             }
             ret = ompi_proc_allocate (OMPI_PROC_MY_NAME->jobid, local_rank, &proc);
@@ -361,28 +360,34 @@ int ompi_proc_complete_init(void)
      * are already in the hash table
      */
     if (ompi_process_info.num_procs < ompi_add_procs_cutoff) {
-        /* sinse ompi_proc_for_name is locking internally -
+        /* since ompi_proc_for_name is locking internally -
          * we need to release lock here
          */
         opal_mutex_unlock (&ompi_proc_lock);
 
 #if OPAL_JOBID_CONTINUOUS 
+        
         for (ompi_vpid_t i = 0 ; i < ompi_process_info.num_procs ; ++i ) {
             opal_process_name_t proc_name;
             proc_name.jobid = OMPI_PROC_MY_NAME->jobid;
             proc_name.vpid = i;
             (void) ompi_proc_for_name (proc_name);
         }
-#else 
 
-        //Retrieve the proc_map and insert the procs 
+       
+        
+
+
+#else
+        //TODO: Non-continues: Retrieve the proc_map and insert the procs
 
 #endif
-        /* acquire lock back for the next step - sort */
+         /* acquire lock back for the next step - sort */
         opal_mutex_lock (&ompi_proc_lock);
+        
     }
 
-    opal_list_sort (&ompi_proc_list, ompi_proc_compare_vid);
+    opal_list_sort (&ompi_proc_list, ompi_proc_compare_vid);    
 
     opal_mutex_unlock (&ompi_proc_lock);
 
@@ -398,8 +403,6 @@ int ompi_proc_list_sort(){
 
     return ret;
 }
-
-
 
 int ompi_proc_finalize (void)
 {

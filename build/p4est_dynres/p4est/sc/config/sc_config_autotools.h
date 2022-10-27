@@ -5,19 +5,19 @@
 /* #undef AC_APPLE_UNIVERSAL_BUILD */
 
 /* C compiler */
-#define CC "/opt/hpc/external/ompi/bin/mpicc"
+#define CC "mpicc"
 
 /* C compiler flags */
 #define CFLAGS "-g -O2"
 
 /* C preprocessor */
-#define CPP "/opt/hpc/external/ompi/bin/mpicc -E"
+#define CPP "mpicc -E"
 
 /* C preprocessor flags */
 #define CPPFLAGS ""
 
 /* CXX compiler */
-#define CXX "/opt/hpc/external/ompi/bin/mpicxx"
+#define CXX "mpicxx"
 
 /* CXX compiler flags */
 #define CXXFLAGS "-g -O2"
@@ -66,10 +66,10 @@
 #define ENABLE_USE_REALLOC 1
 
 /* Development with V4L2 devices works */
-/* #undef ENABLE_V4L2 */
+#define ENABLE_V4L2 1
 
 /* F77 compiler */
-#define F77 "/opt/hpc/external/ompi/bin/mpif77"
+#define F77 "mpif77"
 
 /* Define to dummy `main' function (if any) required to link to the Fortran
    libraries. */
@@ -86,7 +86,7 @@
 /* #undef F77_NO_MINUS_C_MINUS_O */
 
 /* FC compiler */
-#define FC "/opt/hpc/external/ompi/bin/mpif90"
+#define FC "mpif90"
 
 /* FC compiler flags */
 #define FCFLAGS "-g -O2"
@@ -214,7 +214,7 @@
 #define HAVE_UNISTD_H 1
 
 /* Have we found function adler32_combine. */
-/* #undef HAVE_ZLIB */
+#define HAVE_ZLIB 1
 
 /* Define to 1 on a bigendian machine */
 /* #undef IS_BIGENDIAN */
@@ -223,7 +223,7 @@
 #define LDFLAGS ""
 
 /* Libraries */
-#define LIBS "  -lm   "
+#define LIBS "  -lz -lm   "
 
 /* minimal log priority */
 /* #undef LOG_PRIORITY */

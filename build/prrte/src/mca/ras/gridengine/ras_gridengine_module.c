@@ -15,7 +15,7 @@
  * Copyright (c) 2019      Research Organization for Information Science
  *                         and Technology (RIST).  All rights reserved.
  * Copyright (c) 2020      Cisco Systems, Inc.  All rights reserved
- * Copyright (c) 2021      Nanook Consulting.  All rights reserved.
+ * Copyright (c) 2021-2022 Nanook Consulting.  All rights reserved.
  * $COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -37,14 +37,14 @@
 #include "src/mca/ras/base/ras_private.h"
 #include "src/mca/ras/gridengine/ras_gridengine.h"
 #include "src/runtime/prte_globals.h"
-#include "src/util/net.h"
+#include "src/util/pmix_net.h"
 #include "src/util/output.h"
-#include "src/util/show_help.h"
+#include "src/util/pmix_show_help.h"
 
 /*
  * Local functions
  */
-static int prte_ras_gridengine_allocate(prte_job_t *jdata, prte_list_t *nodes);
+static int prte_ras_gridengine_allocate(prte_job_t *jdata, pmix_list_t *nodes);
 static int prte_ras_gridengine_finalize(void);
 #if 0
 static int get_slot_count(char* node_name, int* slot_cnt);
@@ -61,15 +61,14 @@ prte_ras_base_module_t prte_ras_gridengine_module = {NULL, prte_ras_gridengine_a
  *  requested number of nodes/process slots to the job.
  *
  */
-static int prte_ras_gridengine_allocate(prte_job_t *jdata, prte_list_t *nodelist)
+static int prte_ras_gridengine_allocate(prte_job_t *jdata, pmix_list_t *nodelist)
 {
     char *pe_hostfile = getenv("PE_HOSTFILE");
     char *job_id = getenv("JOB_ID");
-    char buf[1024], *tok, *num, *queue, *arch, *ptr, *tmp;
+    char buf[1024], *tok, *num, *queue, *arch, *ptr;
     int rc;
     FILE *fp;
     prte_node_t *node;
-    prte_list_item_t *item;
     bool found;
 
     /* show the Grid Engine's JOB_ID */
@@ -79,7 +78,7 @@ static int prte_ras_gridengine_allocate(prte_job_t *jdata, prte_list_t *nodelist
 
     /* check the PE_HOSTFILE before continuing on */
     if (!(fp = fopen(pe_hostfile, "r"))) {
-        prte_show_help("help-ras-gridengine.txt", "cannot-read-pe-hostfile", true, pe_hostfile,
+        pmix_show_help("help-ras-gridengine.txt", "cannot-read-pe-hostfile", true, pe_hostfile,
                        strerror(errno));
         rc = PRTE_ERROR;
         PRTE_ERROR_LOG(rc);
@@ -98,17 +97,9 @@ static int prte_ras_gridengine_allocate(prte_job_t *jdata, prte_list_t *nodelist
         queue = strtok_r(NULL, " \n", &tok);
         arch = strtok_r(NULL, " \n", &tok);
 
-        if (!prte_keep_fqdn_hostnames && !prte_net_isaddr(ptr)) {
-            if (NULL != (tmp = strchr(ptr, '.'))) {
-                *tmp = '\0';
-            }
-        }
-
         /* see if we already have this node */
         found = false;
-        for (item = prte_list_get_first(nodelist); item != prte_list_get_end(nodelist);
-             item = prte_list_get_next(item)) {
-            node = (prte_node_t *) item;
+        PMIX_LIST_FOREACH(node, nodelist, prte_node_t) {
             if (0 == strcmp(ptr, node->name)) {
                 /* just add the slots */
                 node->slots += (int) strtol(num, (char **) NULL, 10);
@@ -118,7 +109,7 @@ static int prte_ras_gridengine_allocate(prte_job_t *jdata, prte_list_t *nodelist
         }
         if (!found) {
             /* create a new node entry */
-            node = PRTE_NEW(prte_node_t);
+            node = PMIX_NEW(prte_node_t);
             if (NULL == node) {
                 fclose(fp);
                 return PRTE_ERR_OUT_OF_RESOURCE;
@@ -130,7 +121,7 @@ static int prte_ras_gridengine_allocate(prte_job_t *jdata, prte_list_t *nodelist
             node->slots = (int) strtol(num, (char **) NULL, 10);
             prte_output(prte_ras_gridengine_component.verbose,
                         "ras:gridengine: %s: PE_HOSTFILE shows slots=%d", node->name, node->slots);
-            prte_list_append(nodelist, &node->super);
+            pmix_list_append(nodelist, &node->super);
         }
     } /* finished reading the $PE_HOSTFILE */
 
@@ -142,8 +133,8 @@ cleanup:
      * job, or may not have an allocation at all. In any case, this
      * is considered an unrecoverable error and we need to report it
      */
-    if (prte_list_is_empty(nodelist)) {
-        prte_show_help("help-ras-gridengine.txt", "no-nodes-found", true);
+    if (pmix_list_is_empty(nodelist)) {
+        pmix_show_help("help-ras-gridengine.txt", "no-nodes-found", true);
         return PRTE_ERR_NOT_FOUND;
     }
 
@@ -164,7 +155,7 @@ static int get_slot_count(char* node_name, int* slot_cnt)
 
     /* check the PE_HOSTFILE before continuing on */
     if (!(fp = fopen(pe_hostfile, "r"))) {
-        prte_show_help("help-ras-gridengine.txt", "cannot-read-pe-hostfile",
+        pmix_show_help("help-ras-gridengine.txt", "cannot-read-pe-hostfile",
             true, pe_hostfile, strerror(errno));
         PRTE_ERROR_LOG(PRTE_ERROR);
         return(PRTE_ERROR);

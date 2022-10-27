@@ -6,20 +6,21 @@
 # for more information.
 
 project=PMI-Exascale (PMIx)
-project_short=PMIx
-version=4.1.0a1
+project_short=PMIX
+version=5.0.0a1
 language=C
 compiler_env=CC
 compiler_flags_env=CFLAGS
 compiler=gcc
-preprocessor_flags=-I/opt/hpc/local/libevent/include -I/opt/hpc/local/hwloc/include
-compiler_flags_prefix=
-compiler_flags=-pthread
-linker_flags=-L/opt/hpc/local/libevent/lib -L/opt/hpc/local/hwloc/lib  -Wl,-rpath -Wl,/opt/hpc/local/libevent/lib -Wl,-rpath -Wl,/opt/hpc/local/hwloc/lib -Wl,-rpath -Wl,@{libdir} -Wl,--enable-new-dtags
-libs=-lpmix
-libs_static=-lpmix -levent_core -levent_pthreads -lhwloc
-dyn_lib_file=libpmix.@PMIX_DYN_LIB_SUFFIX@
-static_lib_file=libpmix.a
-required_file=
 includedir=${includedir}
 libdir=${libdir}
+preprocessor_flags=-I${includedir} -I${includedir}/pmix  -I/opt/hpc/local/libevent/include -I/opt/hpc/local/hwloc/include 
+compiler_flags_prefix=
+compiler_flags=-pthread 
+linker_flags=-L${libdir} -Wl,-rpath -Wl,${libdir} -Wl,--enable-new-dtags
+linker_flags_static= 
+libs=-lpmix
+libs_static=
+dyn_lib_file=libpmix.so
+static_lib_file=libpmix.a
+required_file=

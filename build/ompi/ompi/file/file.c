@@ -69,7 +69,7 @@ OBJ_CLASS_INSTANCE(ompi_file_t,
 
 
 /*
- * Initialize file handling bookeeping
+ * Initialize file handling bookkeeping
  */
 int ompi_file_init(void)
 {
@@ -140,6 +140,9 @@ int ompi_file_open(struct ompi_communicator_t *comm, const char *filename,
         OBJ_RELEASE(file);
         return ret;
     }
+
+    /* MPI-4 §14.2.8 requires us to remove all unknown keys from the info object */
+    opal_info_remove_unreferenced(file->super.s_info);
 
     /* All done */
 

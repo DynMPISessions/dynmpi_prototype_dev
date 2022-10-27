@@ -11,13 +11,13 @@
 #define BUILD_P6EST 1
 
 /* C compiler */
-#define CC "/opt/hpc/external/ompi/bin/mpicc"
+#define CC "mpicc"
 
 /* C compiler flags */
 #define CFLAGS "-g -O2"
 
 /* C preprocessor */
-#define CPP "/opt/hpc/external/ompi/bin/mpicc -E"
+#define CPP "mpicc -E"
 
 /* C preprocessor flags */
 #define CPPFLAGS ""
@@ -166,13 +166,13 @@
 #define HAVE_UNISTD_H 1
 
 /* Have we found function adler32_combine. */
-/* #undef HAVE_ZLIB */
+#define HAVE_ZLIB 1
 
 /* Linker flags */
 #define LDFLAGS ""
 
 /* Libraries */
-#define LIBS "  -lm   "
+#define LIBS "  -lz -lm   "
 
 /* Define to the sub-directory where libtool stores uninstalled libraries. */
 #define LT_OBJDIR ".libs/"
@@ -208,7 +208,7 @@
 #define PACKAGE_NAME "p4est"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "p4est 2.3.2.1-32f11-dirty"
+#define PACKAGE_STRING "p4est 2.3.2.5-ec52"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "p4est"
@@ -217,7 +217,7 @@
 #define PACKAGE_URL ""
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "2.3.2.1-32f11-dirty"
+#define PACKAGE_VERSION "2.3.2.5-ec52"
 
 /* DEPRECATED (use P4EST_WITH_PETSC instead) */
 /* #undef PETSC */
@@ -241,7 +241,7 @@
 #define STDC_HEADERS 1
 
 /* Version number of package */
-#define VERSION "2.3.2.1-32f11-dirty"
+#define VERSION "2.3.2.5-ec52"
 
 /* Package major version */
 #define VERSION_MAJOR 2
@@ -250,7 +250,7 @@
 #define VERSION_MINOR 3
 
 /* Package point version */
-#define VERSION_POINT 2.1-32f11-dirty
+#define VERSION_POINT 2.5-ec52
 
 /* DEPRECATED (use P4EST_ENABLE_VTK_BINARY instead) */
 #define VTK_BINARY 1

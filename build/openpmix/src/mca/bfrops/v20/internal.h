@@ -209,7 +209,6 @@ pmix_status_t pmix20_bfrop_pack_alloc_directive(pmix_pointer_array_t *regtypes,
 pmix_status_t pmix20_bfrop_pack_psetop_directive(pmix_pointer_array_t *regtypes,
                                                 pmix_buffer_t *buffer, const void *src,
                                                 int32_t num_vals, pmix_data_type_t type);
-
 /**** DEPRECATED ****/
 pmix_status_t pmix20_bfrop_pack_array(pmix_pointer_array_t *regtypes, pmix_buffer_t *buffer,
                                       const void *src, int32_t num_vals, pmix_data_type_t type);
@@ -424,7 +423,7 @@ pmix_status_t pmix20_bfrop_print_alloc_directive(char **output, char *prefix,
                                                  pmix_alloc_directive_t *src,
                                                  pmix_data_type_t type);
 pmix_status_t pmix20_bfrop_print_psetop_directive(char **output, char *prefix,
-                                                 pmix_psetop_directive_t *src,
+                                                 pmix_alloc_directive_t *src,
                                                  pmix_data_type_t type);
 /**** DEPRECATED ****/
 pmix_status_t pmix20_bfrop_print_array(char **output, char *prefix, pmix_info_array_t *src,

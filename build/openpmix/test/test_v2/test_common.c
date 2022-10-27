@@ -4,7 +4,7 @@
  *                         All rights reserved.
  * Copyright (c) 2015-2018 Mellanox Technologies, Inc.
  *                         All rights reserved.
- * Copyright (c) 2020      Triad National Security, LLC
+ * Copyright (c) 2020-2021 Triad National Security, LLC
  *                         All rights reserved.
  * Copyright (c) 2021      Nanook Consulting.  All rights reserved.
  * $COPYRIGHT$
@@ -18,8 +18,8 @@
 /* Note: this file is for functions called by both client and server and their
         callees. */
 
-#include <pmix_common.h>
-#include <src/include/pmix_config.h>
+#include "pmix_common.h"
+#include "src/include/pmix_config.h"
 
 #include "test_common.h"
 #include <assert.h>
@@ -29,7 +29,9 @@
 
 int pmix_test_verbose = 0;
 test_params params;
-
+char **test_argv = NULL;
+node_map *nodes = NULL;
+char *v_params_ascii_str = NULL;
 FILE *pmixt_outfile;
 
 #define OUTPUT_MAX 1024
@@ -49,7 +51,7 @@ void pmixt_exit(int exit_code)
     if ((stdout != pmixt_outfile) && (stderr != pmixt_outfile)) {
         fclose(pmixt_outfile);
     }
-    exit(exit_code);
+    _exit(exit_code);
 }
 
 // initialize the global *nodes array
@@ -86,7 +88,7 @@ void free_nodes(int num_nodes)
 // populates the global *nodes array for the default rank placement case
 void populate_nodes_default_placement(uint32_t num_nodes, int num_procs)
 {
-    int i, j, base_rank = 0, base_rank_next_node = 0;
+    uint32_t i, j, base_rank = 0, base_rank_next_node = 0;
 
     for (i = 0; i < num_nodes; i++) {
         base_rank_next_node += (num_procs % num_nodes) > (uint32_t) i ? num_procs / num_nodes + 1
@@ -102,8 +104,8 @@ void populate_nodes_default_placement(uint32_t num_nodes, int num_procs)
         nodes[i].pmix_local_size = j;
         base_rank = base_rank_next_node;
         TEST_VERBOSE(
-            ("Default rank placement: num_nodes: %d num_procs: %d nodes[%d].pmix_local_size: %d",
-             num_nodes, num_procs, i, nodes[i].pmix_local_size));
+            ("Default rank placement: num_nodes: %u num_procs: %d nodes[%d].pmix_local_size: %d",
+             num_nodes, num_procs, i, (int)nodes[i].pmix_local_size));
     }
 }
 
@@ -148,7 +150,7 @@ void populate_nodes_custom_placement_string(char *placement_str, int num_nodes)
         }
         nodes[i].pmix_local_size = j;
         TEST_VERBOSE(("num_nodes: %d idx: %d nodes[%d].pmix_local_size: %d hostname: %s", num_nodes,
-                      idx, i, j, nodes[i].pmix_hostname));
+                      (int)idx, (int)i, (int)j, nodes[i].pmix_hostname));
     }
 
     free(tempstr);
@@ -158,174 +160,18 @@ void populate_nodes_custom_placement_string(char *placement_str, int num_nodes)
     free(buf);
 }
 
-void parse_cmd(int argc, char **argv, test_params *params, validation_params *v_params)
-{
-    int i;
-    uint32_t job_size;
-
-    /* set output to stdout by default */
-    pmixt_outfile = stdout;
-    if (v_params->pmix_nspace[0] != '\0') {
-        v_params->pmix_nspace[0] = '\0';
-    }
-    /* parse user options */
-    for (i = 1; i < argc; i++) {
-        if (0 == strcmp(argv[i], "--n") || 0 == strcmp(argv[i], "-n")) {
-            i++;
-            if (NULL != argv[i]) {
-                params->np = strdup(argv[i]);
-                job_size = strtol(argv[i], NULL, 10);
-                v_params->pmix_job_size = job_size;
-                v_params->pmix_univ_size = job_size;
-                if (-1 == params->ns_size) {
-                    params->ns_size = job_size;
-                }
-            }
-        } else if (0 == strcmp(argv[i], "--h") || 0 == strcmp(argv[i], "-h")) {
-            /* print help */
-            fprintf(stderr, "usage: pmix_test [-h] [-e foo] [-b] [-nb]\n");
-            fprintf(stderr, "\t-n       the job size (for checking purposes)\n");
-            fprintf(stderr, "\t-s       number of servers to emulate\n");
-            fprintf(stderr, "\t-e foo   use foo as test client executable\n");
-            fprintf(stderr, "\t-v       verbose output\n");
-            fprintf(stderr, "\t-t <>    set timeout\n");
-            fprintf(stderr, "\t-o out   redirect clients logs to file out.<rank>\n");
-            fprintf(stderr, "\t-d str   assign ranks to servers, for example: 0:0,1:1:2,3,4\n");
-            fprintf(stderr, "\t-c       fence[_nb] callback shall include all collected data\n");
-            fprintf(stderr, "\t-nb      use non-blocking fence\n");
-            exit(0);
-        } else if (0 == strcmp(argv[i], "--exec") || 0 == strcmp(argv[i], "-e")) {
-            i++;
-            if (NULL != argv[i]) {
-                params->binary = strdup(argv[i]);
-            }
-        } else if (0 == strcmp(argv[i], "--nservers") || 0 == strcmp(argv[i], "-s")) {
-            i++;
-            if (NULL != argv[i]) {
-                // params->nservers = atoi(argv[i]);
-                v_params->pmix_num_nodes = atoi(argv[i]);
-            }
-        } else if (0 == strcmp(argv[i], "--verbose") || 0 == strcmp(argv[i], "-v")) {
-            PMIXT_VERBOSE_ON();
-            params->verbose = 1;
-        } else if (0 == strcmp(argv[i], "--timeout") || 0 == strcmp(argv[i], "-t")) {
-            i++;
-            if (NULL != argv[i]) {
-                params->timeout = atoi(argv[i]);
-                if (params->timeout == 0) {
-                    params->timeout = TEST_DEFAULT_TIMEOUT;
-                }
-            }
-        } else if (0 == strcmp(argv[i], "-o")) {
-            i++;
-            if (NULL != argv[i]) {
-                params->prefix = strdup(argv[i]);
-            }
-        } else if (0 == strcmp(argv[i], "--namespace")) {
-            i++;
-            if (NULL != argv[i]) {
-                strcpy(v_params->pmix_nspace, argv[i]);
-            }
-            /*
-            } else if (0 == strcmp(argv[i], "--collect-corrupt")) {
-                params->collect_bad = 1;
-            } else if (0 == strcmp(argv[i], "--non-blocking") || 0 == strcmp(argv[i], "-nb")) {
-                params->nonblocking = 1;
-            } else if (0 == strcmp(argv[i], "--collect") || 0 == strcmp(argv[i], "-c")) {
-                params->collect = 1;
-            */
-        } else if (0 == strcmp(argv[i], "--ns-size")) {
-            i++;
-            if (NULL != argv[i]) {
-                params->ns_size = strtol(argv[i], NULL, 10);
-            }
-        } else if (0 == strcmp(argv[i], "--ns-id")) {
-            i++;
-            if (NULL != argv[i]) {
-                params->ns_id = strtol(argv[i], NULL, 10);
-            }
-        } else if (0 == strcmp(argv[i], "--validate-params")) {
-            i++;
-            v_params->validate_params = true;
-            v_params_ascii_str = strdup(argv[i]);
-            // set up custom rank placement
-        } else if (0 == strcmp(argv[i], "--distribute-ranks") || 0 == strcmp(argv[i], "-d")) {
-            i++;
-            if ((PMIX_MAX_KEYLEN - 1) < strlen(argv[i])) {
-                TEST_ERROR(("Rank distribution string exceeds max length of %d bytes",
-                            PMIX_MAX_KEYLEN - 1));
-                exit(1);
-            }
-            v_params->custom_rank_placement = true;
-            strcpy(v_params->rank_placement_string, argv[i]);
-            TEST_VERBOSE(("rank_placement_string: %s", v_params->rank_placement_string));
-        } else {
-            TEST_ERROR_EXIT(("unrecognized option: %s", argv[i]));
-        }
-    }
-
-    /* the block below allows us to immediately process things that depend on
-     * the contents of v_params.
-     * This will only be executed on clients; servers already have v_params
-     * populated from command line args. */
-    if (v_params->validate_params) {
-        ssize_t v_size;
-        v_size = pmixt_decode(v_params_ascii_str, v_params, sizeof(*v_params));
-        if (v_size != sizeof(*v_params)) {
-            assert(v_size == sizeof(*v_params));
-            exit(1);
-        }
-    }
-
-    TEST_VERBOSE(
-        ("v_params->pmix_num_nodes: %d being passed into init_nodes", v_params->pmix_num_nodes));
-    init_nodes(v_params->pmix_num_nodes);
-    if (v_params->custom_rank_placement) {
-        char *local_rank_placement_string = NULL;
-        TEST_VERBOSE(("Before populate_nodes_custom_placement_string, string: %s",
-                      v_params->rank_placement_string));
-        local_rank_placement_string = strdup(v_params->rank_placement_string);
-        // populates global *nodes array
-        populate_nodes_custom_placement_string(local_rank_placement_string,
-                                               v_params->pmix_univ_size);
-        free(local_rank_placement_string);
-    } else {
-        // populates global *nodes array
-        populate_nodes_default_placement(v_params->pmix_num_nodes, v_params->pmix_univ_size);
-    }
-
-    if (NULL == params->binary) {
-        char *basename = NULL;
-        basename = strrchr(argv[0], '/');
-        if (basename) {
-            *basename = '\0';
-            if (0 > asprintf(&params->binary, "%s/../pmix_client", argv[0])) {
-                exit(1);
-            }
-            *basename = '/';
-        } else {
-            if (0 > asprintf(&params->binary, "pmix_client")) {
-                exit(1);
-            }
-        }
-    }
-    /*
-        if( params->collect_bad ){
-            params->collect = v_params->pmix_rank % 2;
-        }
-    */
-}
-
-void default_params(test_params *params, validation_params *v_params)
-{
-    params->binary = NULL;
-    params->np = NULL;
-    params->prefix = NULL;
-    params->timeout = TEST_DEFAULT_TIMEOUT;
-    params->verbose = 0;
-    params->nonblocking = 0;
-    params->ns_size = -1;
-    params->ns_id = -1;
+void default_params(test_params *lparams, validation_params *v_params) {
+    lparams->binary = NULL;
+    lparams->np = NULL;
+    lparams->prefix = NULL;
+    lparams->timeout = TEST_DEFAULT_TIMEOUT;
+    lparams->verbose = 0;
+    lparams->nonblocking = 0;
+    lparams->ns_size = -1;
+    lparams->ns_id = -1;
+    lparams->fence_timeout_ratio = TEST_DEFAULT_FENCE_TIMEOUT_RATIO;
+    lparams->fence_time_multiplier = TEST_DEFAULT_FENCE_TIME_MULTIPLIER;
+    lparams->time_fence = false;
 
     v_params->version = PMIXT_VALIDATION_PARAMS_VER;
     v_params->validate_params = false;
@@ -345,16 +191,16 @@ void default_params(test_params *params, validation_params *v_params)
 }
 
 // also frees the global array *nodes
-void free_params(test_params *params, validation_params *vparams)
+void free_params(test_params *l_params, validation_params *vparams)
 {
-    if (NULL != params->binary) {
-        free(params->binary);
+    if (NULL != l_params->binary) {
+        free(l_params->binary);
     }
-    if (NULL != params->np) {
-        free(params->np);
+    if (NULL != l_params->np) {
+        free(l_params->np);
     }
-    if (NULL != params->prefix) {
-        free(params->prefix);
+    if (NULL != l_params->prefix) {
+        free(l_params->prefix);
     }
 
     if (NULL != v_params_ascii_str) {
@@ -383,20 +229,27 @@ PMIX_CLASS_INSTANCE(participant_t, pmix_list_item_t, NULL, NULL);
 
 PMIX_CLASS_INSTANCE(key_replace_t, pmix_list_item_t, NULL, NULL);
 
-static int ns_id = -1;
-static fence_desc_t *fdesc = NULL;
+//static int ns_id = -1;
+//static fence_desc_t *fdesc = NULL;
 pmix_list_t *participants = NULL;
 pmix_list_t test_fences;
 pmix_list_t *noise_range = NULL;
 pmix_list_t key_replace;
 
-#define CHECK_STRTOL_VAL(val, str, store)    \
-    do {                                     \
-        if (0 == val) {                      \
-            if (0 != strncmp(str, "0", 1)) { \
-                if (!store) {                \
-                    return 1;                \
-                }                            \
-            }                                \
-        }                                    \
-    } while (0)
+#define CHECK_STRTOL_VAL(val, str, store) do {                  \
+    if (0 == val) {                                             \
+        if (0 != strncmp(str, "0", 1)) {                        \
+            if (!store) {                                       \
+                return 1;                                       \
+            }                                                   \
+        }                                                       \
+    }                                                           \
+} while (0)
+
+// cross-platform millisecond sleep function
+void sleep_ms(unsigned long milliseconds) {
+    if (1000 <= milliseconds) {
+        sleep(milliseconds / 1000);
+    }
+    usleep((milliseconds % 1000) * 1000);
+}

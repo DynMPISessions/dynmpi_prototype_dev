@@ -8,7 +8,7 @@
  * Copyright (c) 2016-2020 IBM Corporation.  All rights reserved.
  * Copyright (c) 2016-2018 Research Organization for Information Science
  *                         and Technology (RIST).  All rights reserved.
- * Copyright (c) 2021      Nanook Consulting.  All rights reserved.
+ * Copyright (c) 2021-2022 Nanook Consulting.  All rights reserved.
  * $COPYRIGHT$
  */
 
@@ -21,14 +21,14 @@
 #endif
 
 #include "src/include/pmix_config.h"
-#include "include/pmix_common.h"
-#include "src/include/types.h"
+#include "pmix_common.h"
+#include "src/include/pmix_types.h"
 
 #include "include/pmix_server.h"
 #include "src/class/pmix_hotel.h"
 #include "src/include/pmix_globals.h"
-#include "src/threads/threads.h"
-#include "src/util/hash.h"
+#include "src/threads/pmix_threads.h"
+#include "src/util/pmix_hash.h"
 
 #define PMIX_IOF_HOTEL_SIZE 256
 #define PMIX_IOF_MAX_STAY   300000000
@@ -58,10 +58,12 @@ typedef struct {
     int nlocalprocs;
     pmix_info_t *info;
     size_t ninfo;
+    bool copied;
     char **keys;
     pmix_app_t *apps;
     size_t napps;
     pmix_iof_channel_t channels;
+    pmix_iof_flags_t flags;
     pmix_byte_object_t *bo;
     size_t nbo;
     /* timestamp receipt of the notification so we
@@ -182,13 +184,13 @@ typedef struct {
     pmix_list_t collectives;      // list of active pmix_server_trkr_t
     pmix_list_t remote_pnd; // list of pmix_dmdx_remote_t awaiting arrival of data fror servicing
                             // remote req's
-    pmix_list_t
-        local_reqs;     // list of pmix_dmdx_local_t awaiting arrival of data from local neighbours
+    pmix_list_t local_reqs;     // list of pmix_dmdx_local_t awaiting arrival of data from local neighbours
     pmix_list_t gdata;  // cache of data given to me for passing to all clients
     char **genvars;     // argv array of envars given to me for passing to all clients
     pmix_list_t events; // list of pmix_regevents_info_t registered events
     pmix_list_t groups; // list of pmix_group_t group memberships
     pmix_list_t iof;    // IO to be forwarded to clients
+    pmix_list_t iof_residuals;  // leftover bytes waiting for newline
     pmix_list_t psets;  // list of known psets and memberships
     size_t max_iof_cache; // max number of IOF messages to cache
     bool tool_connections_allowed;
@@ -219,7 +221,6 @@ typedef struct {
     // verbosity for basic server functions
     int base_output;
     int base_verbose;
-
 } pmix_server_globals_t;
 
 #define PMIX_GDS_CADDY(c, p, t)              \
@@ -247,7 +248,8 @@ PMIX_EXPORT bool pmix_server_trk_update(pmix_server_trkr_t *trk);
 
 PMIX_EXPORT void pmix_pending_nspace_requests(pmix_namespace_t *nptr);
 PMIX_EXPORT pmix_status_t pmix_pending_resolve(pmix_namespace_t *nptr, pmix_rank_t rank,
-                                               pmix_status_t status, pmix_dmdx_local_t *lcd);
+                                               pmix_status_t status, pmix_scope_t scope,
+                                               pmix_dmdx_local_t *lcd);
 
 PMIX_EXPORT pmix_status_t pmix_server_abort(pmix_peer_t *peer, pmix_buffer_t *buf,
                                             pmix_op_cbfunc_t cbfunc, void *cbdata);
@@ -272,6 +274,8 @@ PMIX_EXPORT pmix_status_t pmix_server_unpublish(pmix_peer_t *peer, pmix_buffer_t
 
 PMIX_EXPORT pmix_status_t pmix_server_spawn(pmix_peer_t *peer, pmix_buffer_t *buf,
                                             pmix_spawn_cbfunc_t cbfunc, void *cbdata);
+PMIX_EXPORT void pmix_server_spawn_parser(pmix_peer_t *peer, pmix_setup_caddy_t *cd);
+PMIX_EXPORT void pmix_server_spcbfunc(pmix_status_t status, char nspace[], void *cbdata);
 
 PMIX_EXPORT pmix_status_t pmix_server_connect(pmix_server_caddy_t *cd, pmix_buffer_t *buf,
                                               pmix_op_cbfunc_t cbfunc);
@@ -301,6 +305,7 @@ PMIX_EXPORT pmix_status_t pmix_server_alloc(pmix_peer_t *peer, pmix_buffer_t *bu
 
 PMIX_EXPORT pmix_status_t pmix_server_psetop(pmix_peer_t *peer, pmix_buffer_t *buf,
                                             pmix_psetop_cbfunc_t cbfunc, void *cbdata);
+
 
 PMIX_EXPORT pmix_status_t pmix_server_job_ctrl(pmix_peer_t *peer, pmix_buffer_t *buf,
                                                pmix_info_cbfunc_t cbfunc, void *cbdata);
@@ -354,7 +359,38 @@ PMIX_EXPORT pmix_status_t pmix_server_fabric_get_device_index(pmix_server_caddy_
                                                               pmix_buffer_t *buf,
                                                               pmix_info_cbfunc_t cbfunc);
 
+PMIX_EXPORT pmix_status_t pmix_server_device_dists(pmix_server_caddy_t *cd,
+                                                   pmix_buffer_t *buf,
+                                                   pmix_device_dist_cbfunc_t cbfunc);
+
+PMIX_EXPORT pmix_status_t pmix_server_refresh_cache(pmix_server_caddy_t *cd,
+                                                    pmix_buffer_t *buf,
+                                                    pmix_op_cbfunc_t cbfunc);
+
+PMIX_EXPORT void pmix_server_query_cbfunc(pmix_status_t status,
+                                          pmix_info_t *info, size_t ninfo, void *cbdata,
+                                          pmix_release_cbfunc_t release_fn, void *release_cbdata);
+
 PMIX_EXPORT extern pmix_server_module_t pmix_host_server;
 PMIX_EXPORT extern pmix_server_globals_t pmix_server_globals;
+
+static inline pmix_peer_t* pmix_get_peer_object(const pmix_proc_t *proc)
+{
+    pmix_peer_t *peer;
+    int n;
+
+    for (n=0; n < pmix_server_globals.clients.size; n++) {
+        peer = (pmix_peer_t *) pmix_pointer_array_get_item(&pmix_server_globals.clients, n);
+        if (NULL == peer) {
+            continue;
+        }
+        if (PMIX_CHECK_NSPACE(proc->nspace, peer->info->pname.nspace) &&
+            proc->rank == peer->info->pname.rank) {
+            return peer;
+        }
+    }
+    return NULL;
+}
+
 
 #endif // PMIX_SERVER_OPS_H

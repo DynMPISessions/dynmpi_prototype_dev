@@ -1,11 +1,11 @@
 /*
  *
- * Copyright (c) 2016-2020 The University of Tennessee and The University
+ * Copyright (c) 2016-2021 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  *
  * Copyright (c) 2020      Intel, Inc.  All rights reserved.
- * Copyright (c) 2021      Nanook Consulting.  All rights reserved.
+ * Copyright (c) 2021-2022 Nanook Consulting.  All rights reserved.
  * $COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -20,17 +20,14 @@
 #include <math.h>
 #include <string.h>
 
-#include "src/class/prte_list.h"
+#include "src/class/pmix_list.h"
 #include "src/pmix/pmix-internal.h"
 
 #include "grpcomm_bmg.h"
 #include "src/mca/errmgr/detector/errmgr_detector.h"
 #include "src/mca/errmgr/errmgr.h"
 #include "src/mca/grpcomm/base/base.h"
-#include "src/mca/rml/base/base.h"
-#include "src/mca/rml/base/rml_contact.h"
-#include "src/mca/routed/base/base.h"
-#include "src/mca/routed/routed.h"
+#include "src/rml/rml.h"
 #include "src/mca/state/state.h"
 #include "src/util/name_fns.h"
 #include "src/util/nidmap.h"
@@ -44,19 +41,21 @@ static int register_cb_type(prte_grpcomm_rbcast_cb_t callback);
 static int unregister_cb_type(int type);
 
 /* Module def */
-prte_grpcomm_base_module_t prte_grpcomm_bmg_module = {.init = bmg_init,
-                                                      .finalize = bmg_finalize,
-                                                      .xcast = NULL,
-                                                      .allgather = NULL,
-                                                      .rbcast = rbcast,
-                                                      .register_cb = register_cb_type,
-                                                      .unregister_cb = unregister_cb_type};
+prte_grpcomm_base_module_t prte_grpcomm_bmg_module = {
+    .init = bmg_init,
+    .finalize = bmg_finalize,
+    .xcast = NULL,
+    .allgather = NULL,
+    .rbcast = rbcast,
+    .register_cb = register_cb_type,
+    .unregister_cb = unregister_cb_type
+};
 
 /* Internal functions */
 static void rbcast_recv(int status, pmix_proc_t *sender, pmix_data_buffer_t *buffer,
                         prte_rml_tag_t tag, void *cbdata);
 /* internal variables */
-static prte_list_t tracker;
+static pmix_list_t tracker;
 
 /*
  * registration of callbacks
@@ -91,10 +90,10 @@ static int unregister_cb_type(int type)
  */
 static int bmg_init(void)
 {
-    PRTE_CONSTRUCT(&tracker, prte_list_t);
+    PMIX_CONSTRUCT(&tracker, pmix_list_t);
 
-    prte_rml.recv_buffer_nb(PRTE_NAME_WILDCARD, PRTE_RML_TAG_RBCAST, PRTE_RML_PERSISTENT,
-                            rbcast_recv, NULL);
+    PRTE_RML_RECV(PRTE_NAME_WILDCARD, PRTE_RML_TAG_RBCAST,
+                  PRTE_RML_PERSISTENT, rbcast_recv, NULL);
     return PRTE_SUCCESS;
 }
 
@@ -104,8 +103,8 @@ static int bmg_init(void)
 static void bmg_finalize(void)
 {
     /* cancel the rbcast recv */
-    prte_rml.recv_cancel(PRTE_NAME_WILDCARD, PRTE_RML_TAG_RBCAST);
-    PRTE_LIST_DESTRUCT(&tracker);
+    PRTE_RML_CANCEL(PRTE_NAME_WILDCARD, PRTE_RML_TAG_RBCAST);
+    PMIX_LIST_DESTRUCT(&tracker);
     return;
 }
 
@@ -132,7 +131,6 @@ static int rbcast(pmix_data_buffer_t *buf)
     }
     for (i = start_i; i <= log2no + 1 && i > 0; i = i + increase_val) {
         for (d = 1; d >= -1; d -= 2) {
-            // for(i=1; i <= nprocs/2; i*=2) for(d=1; d >= -1; d-=2) {
             int idx = (nprocs + vpid + d * ((int) pow(2, i) - 1)) % nprocs;
 
             /* daemon.vpid cannot be 0, because daemond id ranges 1-nprocs, thus if idx==0, change
@@ -141,14 +139,22 @@ static int rbcast(pmix_data_buffer_t *buf)
                 idx = nprocs;
             }*/
             PMIX_LOAD_PROCID(&daemon, prte_process_info.myproc.nspace, idx);
-            PRTE_RETAIN(buf);
 
             PRTE_OUTPUT_VERBOSE((1, prte_grpcomm_base_framework.framework_output,
                                  "%s grpcomm:bmg: broadcast message in %d daemons to %s",
                                  PRTE_NAME_PRINT(PRTE_PROC_MY_NAME), nprocs,
                                  PRTE_NAME_PRINT(&daemon)));
-            if (0 > (rc = prte_rml.send_buffer_nb(&daemon, buf, PRTE_RML_TAG_RBCAST,
-                                                  prte_rml_send_callback, NULL))) {
+
+            pmix_data_buffer_t* sndbuf;
+            PMIX_DATA_BUFFER_CREATE(sndbuf);
+            rc = PMIx_Data_copy_payload(sndbuf, buf);
+            if (PMIX_SUCCESS != rc) {
+                PMIX_DATA_BUFFER_RELEASE(sndbuf);
+                PRTE_ERROR_LOG(rc);
+                return rc;
+            }
+            PRTE_RML_SEND(rc, daemon.rank, buf, PRTE_RML_TAG_RBCAST);
+            if (PRTE_SUCCESS != rc) {
                 PRTE_ERROR_LOG(rc);
             }
         }
@@ -160,14 +166,11 @@ static int rbcast(pmix_data_buffer_t *buf)
 static void rbcast_recv(int status, pmix_proc_t *sender, pmix_data_buffer_t *buffer,
                         prte_rml_tag_t tg, void *cbdata)
 {
-    int ret, cnt;
+    int ret, cnt, cbtype;
     pmix_data_buffer_t datbuf, *relay, *rly, *data;
     prte_grpcomm_signature_t sig;
     prte_rml_tag_t tag;
-    int cbtype;
-    size_t inlen, cmplen;
-    uint8_t *packed_data, *cmpdata;
-    int8_t flag;
+    bool flag;
     pmix_byte_object_t bo, pbo;
 
     PRTE_OUTPUT_VERBOSE((1, prte_grpcomm_base_framework.framework_output,
@@ -186,7 +189,7 @@ static void rbcast_recv(int status, pmix_proc_t *sender, pmix_data_buffer_t *buf
     PMIX_DATA_BUFFER_CONSTRUCT(&datbuf);
     /* unpack the flag to see if this payload is compressed */
     cnt = 1;
-    ret = PMIx_Data_unpack(NULL, buffer, &flag, &cnt, PMIX_INT8);
+    ret = PMIx_Data_unpack(NULL, buffer, &flag, &cnt, PMIX_BOOL);
     if (PMIX_SUCCESS != ret) {
         PMIX_ERROR_LOG(ret);
         PMIX_DATA_BUFFER_RELEASE(rly);
@@ -206,8 +209,8 @@ static void rbcast_recv(int status, pmix_proc_t *sender, pmix_data_buffer_t *buf
     }
     if (flag) {
         /* decompress the data */
-        if (PMIx_Data_decompress((uint8_t **) &bo.bytes, &bo.size, (uint8_t *) pbo.bytes,
-                                 pbo.size)) {
+        if (PMIx_Data_decompress((uint8_t *) pbo.bytes, pbo.size,
+                                 (uint8_t **) &bo.bytes, &bo.size)) {
             /* the data has been uncompressed */
             ret = PMIx_Data_load(&datbuf, &bo);
             if (PMIX_SUCCESS != ret) {
@@ -281,7 +284,7 @@ static void rbcast_recv(int status, pmix_proc_t *sender, pmix_data_buffer_t *buf
 
     /* get the cbtype */
     cnt = 1;
-    ret = PMIx_Data_unpack(NULL, data, &cbtype, &cnt, PMIX_INT32);
+    ret = PMIx_Data_unpack(NULL, data, &cbtype, &cnt, PMIX_INT);
     if (PMIX_SUCCESS != ret) {
         PMIX_ERROR_LOG(ret);
         PMIX_DATA_BUFFER_DESTRUCT(&datbuf);
@@ -290,7 +293,12 @@ static void rbcast_recv(int status, pmix_proc_t *sender, pmix_data_buffer_t *buf
     }
     if (prte_grpcomm_rbcast_cb[cbtype](relay)) {
         /* forward the rbcast */
-        if (PRTE_SUCCESS == (ret = rbcast(rly))) {
+        ret = rbcast(rly);
+        if (PRTE_SUCCESS != ret) {
+            PMIX_ERROR_LOG(ret);
+            PMIX_DATA_BUFFER_DESTRUCT(&datbuf);
+            PRTE_ACTIVATE_JOB_STATE(NULL, PRTE_JOB_STATE_FORCED_EXIT);
+            goto CLEANUP;
         }
     }
 

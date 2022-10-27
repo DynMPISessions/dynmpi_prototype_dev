@@ -569,6 +569,23 @@ int ompi_rte_init(int *pargc, char ***pargv)
         /* if we get PMIX_ERR_UNREACH indicating that we cannot reach the
          * server, then we assume we are operating as a singleton */
         if (PMIX_ERR_UNREACH == ret) {
+            /* if we are in a PMI or SLURM environment with two tasks or more,
+             * we probably do not want to start singletons */
+            char *size_str = getenv("PMI_SIZE");
+            if (NULL == size_str) {
+                size_str = getenv("SLURM_NPROCS");
+            }
+            int size = (NULL != size_str)?atoi(size_str):1;
+            if (1 < size) {
+                char *rank_str = getenv("PMI_RANK");
+                if (NULL == rank_str) {
+                    rank_str = getenv("SLURM_PROCID");
+                }
+                int rank = (NULL != rank_str)?atoi(rank_str):0;
+                if (0 == rank) {
+                    opal_show_help("help-mpi-runtime.txt", "no-pmix-but", false, size);
+                }
+            }
             ompi_singleton = true;
         } else {
             /* we cannot run - this could be due to being direct launched
@@ -601,6 +618,7 @@ int ompi_rte_init(int *pargc, char ***pargv)
         opal_process_info.nodename = ev1;  // ev1 is an allocated string
         ev1 = NULL;  // protect the string
     }
+
     /* get our local rank from PMIx */
     OPAL_MODEX_RECV_VALUE_OPTIONAL(rc, PMIX_LOCAL_RANK,
                                    &opal_process_info.my_name, &u16ptr, PMIX_UINT16);
@@ -638,6 +656,7 @@ int ompi_rte_init(int *pargc, char ***pargv)
     pname.vpid = OPAL_VPID_WILDCARD;
     OPAL_MODEX_RECV_VALUE_OPTIONAL(rc, PMIX_JOB_SIZE,
                                    &pname, &u32ptr, PMIX_UINT32);
+
     if (PMIX_SUCCESS != rc) {
         if (ompi_singleton) {
             /* just assume 1 */
@@ -799,6 +818,11 @@ int ompi_rte_init(int *pargc, char ***pargv)
     if (PMIX_SUCCESS == rc && NULL != val) {
         opal_process_info.initial_wdir = val;
         val = NULL;  // protect the string
+    }
+    else {
+        // Probably singleton case. Just assume cwd.
+        opal_process_info.initial_wdir = calloc(1, OPAL_PATH_MAX + 1);
+        opal_getcwd(opal_process_info.initial_wdir, OPAL_PATH_MAX);
     }
 
     /* identify our location */
@@ -977,7 +1001,6 @@ int ompi_rte_refresh_job_size(){
     OPAL_MODEX_RECV_VALUE(rc, PMIX_JOB_SIZE,
                                    &pname, &u32ptr, PMIX_UINT32);
     if (PMIX_SUCCESS != rc) {
-        printf("job size no success: %d\n", u32);
         if (ompi_singleton) {
             /* just assume 1 */
             u32 = 1;

@@ -1,1 +1,0 @@
-managers/random_diff_manager.c

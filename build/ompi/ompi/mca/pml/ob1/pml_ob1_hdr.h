@@ -97,21 +97,6 @@ static inline void mca_pml_ob1_cid_hdr_prepare (mca_pml_ob1_cid_hdr_t *hdr, ompi
     hdr->hdr_src = ompi_comm_rank (comm);
 }
 
-#define MCA_PML_OB1_EXT_CID_HDR_HTON(h)                         \
-    do {                                                        \
-        MCA_PML_OB1_COMMON_HDR_HTON((h).hdr_common);            \
-        (h).hdr_src_comm_index = htons((h).hdr_src_comm_index); \
-        ompi_comm_cid_hton(&(h).hdr_cid);                       \
-    } while (0)
-
-#define MCA_PML_OB1_EXT_CID_HDR_NTOH(h)                         \
-    do {                                                        \
-        MCA_PML_OB1_COMMON_HDR_NTOH((h).hdr_common);            \
-        (h).hdr_src_comm_index = ntonh((h).hdr_src_comm_index); \
-        ompi_comm_cid_ntoh(&(h).hdr_cid);                       \
-    } while (0)
-
-
 /**
  *  Header definition for the first fragment, contains the
  *  attributes required to match the corresponding posted receive.
@@ -164,6 +149,24 @@ do { \
     (h).hdr_src = htonl((h).hdr_src); \
     (h).hdr_tag = htonl((h).hdr_tag); \
     (h).hdr_seq = htons((h).hdr_seq); \
+} while (0)
+
+#define MCA_PML_OB1_EXT_MATCH_HDR_NTOH(h) \
+do {\
+    MCA_PML_OB1_COMMON_HDR_NTOH((h).hdr_common); \
+    (h).hdr_cid.cid_base = ntoh64((h).hdr_cid.cid_base); \
+    (h).hdr_cid.cid_sub.u64 = ntoh64((h).hdr_cid.cid_sub.u64); \
+    (h).hdr_src_comm_index = ntohs((h).hdr_src_comm_index); \
+    (h).hdr_src = ntohl((h).hdr_src); \
+} while (0)
+
+#define MCA_PML_OB1_EXT_MATCH_HDR_HTON(h) \
+do {\
+    MCA_PML_OB1_COMMON_HDR_HTON((h).hdr_common); \
+    (h).hdr_cid.cid_base = hton64((h).hdr_cid.cid_base); \
+    (h).hdr_cid.cid_sub.u64 = hton64((h).hdr_cid.cid_sub.u64); \
+    (h).hdr_src_comm_index = htons((h).hdr_src_comm_index); \
+    (h).hdr_src = htonl((h).hdr_src); \
 } while (0)
 
 struct mca_pml_ob1_ext_match_hdr_t {
@@ -497,7 +500,7 @@ union mca_pml_ob1_hdr_t {
 typedef union mca_pml_ob1_hdr_t mca_pml_ob1_hdr_t;
 
 #if !defined(WORDS_BIGENDIAN) && OPAL_ENABLE_HETEROGENEOUS_SUPPORT
-static inline __opal_attribute_always_inline__ void
+static inline void
 ob1_hdr_ntoh(mca_pml_ob1_hdr_t *hdr, const uint8_t hdr_type)
 {
     if(!(hdr->hdr_common.hdr_flags & MCA_PML_OB1_HDR_FLAGS_NBO))
@@ -531,7 +534,7 @@ ob1_hdr_ntoh(mca_pml_ob1_hdr_t *hdr, const uint8_t hdr_type)
 
 	    MCA_PML_OB1_EXT_MATCH_HDR_NTOH(hdr->hdr_cid);
 	    /* now swap the real header */
-	    ob1_hdr_ntoh (next_hdr, hext_hdr->hdr_common.hdr_type);
+	    ob1_hdr_ntoh (next_hdr, next_hdr->hdr_common.hdr_type);
 	    break;
 	}
         default:
@@ -546,7 +549,7 @@ ob1_hdr_ntoh(mca_pml_ob1_hdr_t *hdr, const uint8_t hdr_type)
 #if OPAL_ENABLE_HETEROGENEOUS_SUPPORT
 #define ob1_hdr_hton(h, t, p) \
     ob1_hdr_hton_intr((mca_pml_ob1_hdr_t*)h, t, p)
-static inline __opal_attribute_always_inline__ void
+static inline  void
 ob1_hdr_hton_intr(mca_pml_ob1_hdr_t *hdr, const uint8_t hdr_type,
         const ompi_proc_t *proc)
 {
@@ -586,7 +589,7 @@ ob1_hdr_hton_intr(mca_pml_ob1_hdr_t *hdr, const uint8_t hdr_type,
 
 	    MCA_PML_OB1_EXT_MATCH_HDR_HTON(hdr->hdr_cid);
 	    /* now swap the real header */
-	    ob1_hdr_hton (next_hdr, hext_hdr->hdr_common.hdr_type, proc);
+	    ob1_hdr_hton (next_hdr, next_hdr->hdr_common.hdr_type, proc);
 	    break;
 	}
         default:
@@ -631,7 +634,7 @@ ob1_hdr_copy(mca_pml_ob1_hdr_t *src, mca_pml_ob1_hdr_t *dst)
 	    mca_pml_ob1_hdr_t *next_dst = (mca_pml_ob1_hdr_t *) ((uintptr_t) dst + sizeof (dst->hdr_cid));
 
 	    memcpy (&dst->hdr_cid, &src->hdr_cid, sizeof (src->hdr_cid));
-            /* can't call recusively and expect inlining */
+            /* can't call recursively and expect inlining */
             src = next_src;
             dst = next_dst;
             continue;

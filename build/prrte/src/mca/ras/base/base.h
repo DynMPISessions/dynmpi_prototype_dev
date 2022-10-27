@@ -13,7 +13,7 @@
  *                         reserved.
  * Copyright (c) 2016-2020 Intel, Inc.  All rights reserved.
  * Copyright (c) 2020      Cisco Systems, Inc.  All rights reserved
- * Copyright (c) 2021      Nanook Consulting.  All rights reserved.
+ * Copyright (c) 2021-2022 Nanook Consulting.  All rights reserved.
  * $COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -34,7 +34,7 @@
 
 #include "src/mca/ras/ras.h"
 #include "src/runtime/prte_globals.h"
-#include "src/util/printf.h"
+#include "src/util/pmix_printf.h"
 /*
  * Global functions for MCA overall collective open and close
  */
@@ -57,6 +57,7 @@ typedef struct prte_ras_base_t {
     int total_slots_alloc;
     int multiplier;
     bool launch_orted_on_hn;
+    bool simulated;
 } prte_ras_base_t;
 
 PRTE_EXPORT extern prte_ras_base_t prte_ras_base;

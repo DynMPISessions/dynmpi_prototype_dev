@@ -8,12 +8,12 @@
 #include <stdlib.h>
 #include <string.h>
 
-#if OMPI_BUILD_MPI_PROFILING
-#if OPAL_HAVE_WEAK_SYMBOLS
-#pragma weak MPI_Session_get_res_change = PMPI_Session_get_res_change
-#endif
-#define MPI_Session_get_res_change PMPI_Session_get_res_change
-#endif
+//#if OMPI_BUILD_MPI_PROFILING
+//#if OPAL_HAVE_WEAK_SYMBOLS
+//#pragma weak MPI_Session_accept_res_change = PMPI_Session_accept_res_change
+//#endif
+//#define MPI_Session_get_accept_change PMPI_Session_accept_res_change
+//#endif
 
 static const char FUNC_NAME[] = "MPI_Session_accept_res_change";
 
@@ -27,7 +27,7 @@ int MPI_Session_accept_res_change(MPI_Session *session, MPI_Info *info, char del
     char val2[8];
     char val_rc_type[8];
     char d_pset[PMIX_MAX_KEYLEN];
-    ompi_rc_op_type_t rc_type = OMPI_RC_NULL;   
+    ompi_rc_op_type_t rc_type = OMPI_RC_NULL;
 
     *terminate = 0;
 
@@ -39,11 +39,11 @@ int MPI_Session_accept_res_change(MPI_Session *session, MPI_Info *info, char del
         }
     }
 
-    /* no communicator given so lookuo rc_op_type in info object */
+    /* no communicator given so lookup rc_op_type in info object */
     if(NULL == comm){
-        MPI_Info_get(*info, "mpi_rc_type", 8, val_rc_type, &flag);
+    	MPI_Info_get(*info, "mpi_rc_type", 8, val_rc_type, &flag);
         if(flag){
-            rc_type = (ompi_rc_op_type_t) atoi(val_rc_type);
+	    rc_type = (ompi_rc_op_type_t)atoi(val_rc_type);
         }
     }
 
@@ -72,6 +72,7 @@ int MPI_Session_accept_res_change(MPI_Session *session, MPI_Info *info, char del
             strcpy(d_pset, delta_pset);
         }
 
+	/* root broadcasts relevant info via the provided communicator */
         if(NULL != comm){
             MPI_Bcast(d_pset, PMIX_MAX_KEYLEN, MPI_CHAR, root, *comm);
             MPI_Bcast(&rc_type, 1, MPI_UINT8_T, root, *comm);

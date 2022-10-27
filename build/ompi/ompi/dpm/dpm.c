@@ -10,7 +10,7 @@
  *                         University of Stuttgart.  All rights reserved.
  * Copyright (c) 2004-2005 The Regents of the University of California.
  *                         All rights reserved.
- * Copyright (c) 2007-2020 Cisco Systems, Inc.  All rights reserved.
+ * Copyright (c) 2007-2022 Cisco Systems, Inc.  All rights reserved.
  * Copyright (c) 2006-2009 University of Houston.  All rights reserved.
  * Copyright (c) 2009      Sun Microsystems, Inc.  All rights reserved.
  * Copyright (c) 2011-2015 Los Alamos National Security, LLC.  All rights
@@ -21,7 +21,7 @@
  *                         and Technology (RIST). All rights reserved.
  * Copyright (c) 2018      Amazon.com, Inc. or its affiliates.  All Rights reserved.
  * Copyright (c) 2021      Nanook Consulting.  All rights reserved.
- * Copyright (c) 2018-2021 Triad National Security, LLC. All rights
+ * Copyright (c) 2018-2022 Triad National Security, LLC. All rights
  *                         reserved.
  * $COPYRIGHT$
  *
@@ -95,6 +95,18 @@ int ompi_dpm_init(void)
         return OMPI_ERROR;
     }
     return OMPI_SUCCESS;
+}
+
+static int compare_pmix_proc(const void *a, const void *b)
+{
+    const pmix_proc_t *proc_a = (pmix_proc_t *)a;
+    const pmix_proc_t *proc_b = (pmix_proc_t *)b;
+
+    int nspace_dif = strncmp(proc_a->nspace, proc_b->nspace, PMIX_MAX_NSLEN);
+    if (nspace_dif != 0)
+        return nspace_dif;
+
+    return proc_a->rank - proc_b->rank;
 }
 
 int ompi_dpm_connect_accept(ompi_communicator_t *comm, int root,
@@ -378,6 +390,11 @@ bcast_rportlen:
      * so that add_procs will not result in a slew of lookups */
     PMIX_INFO_CONSTRUCT(&tinfo);
     PMIX_INFO_LOAD(&tinfo, PMIX_TIMEOUT, &ompi_pmix_connect_timeout, PMIX_UINT32);
+
+    /*
+     * sort procs so that all ranks call PMIx_Connect() with the processes in same order
+     */
+    qsort(procs, nprocs, sizeof(pmix_proc_t), compare_pmix_proc);
     pret = PMIx_Connect(procs, nprocs, &tinfo, 1);
     PMIX_INFO_DESTRUCT(&tinfo);
     PMIX_PROC_FREE(procs, nprocs);
@@ -468,7 +485,7 @@ bcast_rportlen:
 
     /* now deal with the remote group */
     rsize = opal_list_get_size(&rlist);
-    new_group_pointer=ompi_group_allocate(rsize);
+    new_group_pointer=ompi_group_allocate(NULL, rsize);
     if (NULL == new_group_pointer) {
         rc = OMPI_ERR_OUT_OF_RESOURCE;
         OPAL_LIST_DESTRUCT(&rlist);
@@ -782,8 +799,9 @@ static int dpm_convert(opal_list_t *infos,
     /**** Get here if the specified option is not found in the
      **** current list - add it
      ****/
-
-    if (NULL == directive) {
+    if (NULL == directive && NULL == modifier) {
+        return OMPI_ERR_BAD_PARAM;
+    } else if (NULL == directive) {
         opal_asprintf(&ptr, ":%s", modifier);
     } else if (NULL == modifier) {
         ptr = strdup(directive);
@@ -1731,9 +1749,9 @@ int ompi_dpm_dyn_finalize(void)
             return OMPI_ERR_OUT_OF_RESOURCE;
         }
 
-        max = opal_pointer_array_get_size(&ompi_comm_array);
+        max = opal_pointer_array_get_size(&ompi_mpi_communicators);
         for (i=3; i<max; i++) {
-            comm = (ompi_communicator_t*)opal_pointer_array_get_item(&ompi_comm_array,i);
+            comm = (ompi_communicator_t*)opal_pointer_array_get_item(&ompi_mpi_communicators,i);
             if (NULL != comm &&  OMPI_COMM_IS_DYNAMIC(comm)) {
                 objs[j++] = disconnect_init(comm);
             }
@@ -2047,7 +2065,7 @@ static int start_dvm(char **hostfiles, char **dash_host)
         set_handler_default(SIGCHLD);
 
         /* Unblock all signals, for many of the same reasons that
-         we set the default handlers, above.  This is noticable
+         we set the default handlers, above.  This is noticeable
          on Linux where the event library blocks SIGTERM, but we
          don't want that blocked by the prted (or, more
          specifically, we don't want it to be blocked by the
@@ -2059,7 +2077,7 @@ static int start_dvm(char **hostfiles, char **dash_host)
         execv(cmd, args);
 
         /* if I get here, the execv failed! */
-        opal_show_help("help-ess-base.txt", "ess-base:execv-error",
+        opal_show_help("help-dpm.txt", "execv-error",
                        true, cmd, strerror(errno));
         exit(1);
 

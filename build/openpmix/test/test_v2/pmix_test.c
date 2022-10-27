@@ -18,10 +18,10 @@
  *                         and Technology (RIST). All rights reserved.
  * Copyright (c) 2015-2018 Mellanox Technologies, Inc.
  *                         All rights reserved.
- * Copyright (c) 2020      Triad National Security, LLC.
+ * Copyright (c) 2020-2021 Triad National Security, LLC.
  *                         All rights reserved.
  *
- * Copyright (c) 2021      Nanook Consulting.  All rights reserved.
+ * Copyright (c) 2021-2022 Nanook Consulting.  All rights reserved.
  * $COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -36,7 +36,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-#include "src/util/output.h"
+#include "src/util/pmix_output.h"
 #include "src/util/pmix_environ.h"
 
 #include "server_callbacks.h"
@@ -50,10 +50,13 @@ int main(int argc, char **argv)
     char **client_env = NULL;
     char **client_argv = NULL;
     int rc, i;
+    test_params params;
+    validation_params val_params;
     struct stat stat_buf;
     int test_fail = 0;
     char *tmp;
     sigset_t unblock;
+    char **test_argv = NULL;
 
     default_params(&params, &val_params);
 
@@ -64,13 +67,17 @@ int main(int argc, char **argv)
 
     TEST_VERBOSE(("Testing version %s", PMIx_Get_version()));
 
-    parse_cmd(argc, argv, &params, &val_params);
+    parse_cmd_server(argc, argv, &params, &val_params, &test_argv);
     TEST_VERBOSE(("Start PMIx_lite smoke test (timeout is %d)", params.timeout));
 
     /* set common argv and env */
     client_env = pmix_argv_copy(environ);
-    set_client_argv(&params, &client_argv);
-
+    if (NULL != test_argv) {
+        TEST_VERBOSE(("Before set_client_argv, test_argv[0] = %s", test_argv[0]));
+    }
+    set_client_argv(&params, &client_argv, test_argv);
+    //set_client_argv(&params, &client_argv);
+    TEST_VERBOSE(("After set_client_argv"));
     tmp = pmix_argv_join(client_argv, ' ');
     TEST_VERBOSE(("Executing test: %s", tmp));
     free(tmp);
@@ -97,7 +104,7 @@ int main(int argc, char **argv)
     }
 
     // fork of other servers happens below in server_init
-    if (PMIX_SUCCESS != (rc = server_init(&params, &val_params))) {
+    if (PMIX_SUCCESS != (rc = server_init(&val_params))) {
         free_params(&params, &val_params);
         return rc;
     }
@@ -155,8 +162,23 @@ done:
     pmix_argv_free(client_argv);
     pmix_argv_free(client_env);
 
-    if (0 == test_fail) {
-        TEST_OUTPUT(("Test SUCCEEDED!"));
+    if (!test_fail && !test_timeout) {
+        if (0 == my_server_id) {
+            TEST_OUTPUT(("Test SUCCEEDED! All servers completed normally."));
+        }
     }
+    else if (!test_timeout) {
+        if (PMIX_ERR_TIMEOUT == test_fail){
+            TEST_OUTPUT(("Test TIMED OUT for server id: %d", my_server_id));
+        }
+        else {
+            TEST_OUTPUT(("Test FAILED for server id: %d, failure code = %d", my_server_id, test_fail));
+        }
+    }
+    else {
+        TEST_OUTPUT(("Test TIMED OUT for server id: %d", my_server_id));
+        return test_timeout;
+    }
+
     return test_fail;
 }

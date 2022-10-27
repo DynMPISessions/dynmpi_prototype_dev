@@ -21,6 +21,7 @@
  * Copyright (c) 2018      FUJITSU LIMITED.  All rights reserved.
  * Copyright (c) 2018-2019 Triad National Security, LLC. All rights
  *                         reserved.
+ * Copyright (c) 2022      IBM Corporation.  All rights reserved.
  * $COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -127,6 +128,10 @@ static int mca_pml_ob1_send_request_free(struct ompi_request_t** request)
 
 static int mca_pml_ob1_send_request_cancel(struct ompi_request_t* request, int complete)
 {
+#if MPI_VERSION >= 4
+    mca_pml_cancel_send_callback(request, complete);
+#endif
+
 #if OPAL_ENABLE_FT_MPI
     ompi_communicator_t* comm = request->req_mpi_object.comm;
     mca_pml_ob1_send_request_t* pml_req = (mca_pml_ob1_send_request_t*)request;
@@ -463,7 +468,7 @@ mca_pml_ob1_copy_frag_completion( mca_btl_base_module_t* btl,
     mca_bml_base_btl_t* bml_btl = (mca_bml_base_btl_t*) des->des_context;
 
     des->des_cbfunc = mca_pml_ob1_frag_completion;
-    /* Reset the BTL onwership flag as the BTL can free it after completion. */
+    /* Reset the BTL ownership flag as the BTL can free it after completion. */
     des->des_flags |= MCA_BTL_DES_FLAGS_BTL_OWNERSHIP;
     OPAL_OUTPUT((-1, "copy_frag_completion FRAG frag=%p", (void *)des));
     /* Currently, we cannot support a failure in the send.  In the blocking
@@ -680,7 +685,7 @@ int mca_pml_ob1_send_request_start_copy( mca_pml_ob1_send_request_t* sendreq,
         (void)opal_convertor_pack( &sendreq->req_send.req_base.req_convertor,
                                    &iov, &iov_count, &max_data );
          /*
-          *  Packing finished, make the user buffer unaccessable.
+          *  Packing finished, make the user buffer unaccessible.
           */
         MEMCHECKER(
             memchecker_call(&opal_memchecker_base_mem_noaccess,
@@ -803,7 +808,7 @@ int mca_pml_ob1_send_request_start_prepare( mca_pml_ob1_send_request_t* sendreq,
 
 
 /**
- *  We have contigous data that is registered - schedule across
+ *  We have contiguous data that is registered - schedule across
  *  available nics.
  */
 
@@ -1129,7 +1134,7 @@ mca_pml_ob1_send_request_schedule_once(mca_pml_ob1_send_request_t* sendreq)
             add_request_to_send_pending(sendreq,
                     MCA_PML_OB1_SEND_PENDING_SCHEDULE, true);
             /* Note that request remains locked. send_request_process_pending()
-             * function will call shedule_exclusive() directly without taking
+             * function will call schedule_exclusive() directly without taking
              * the lock */
             return OMPI_ERR_OUT_OF_RESOURCE;
         }

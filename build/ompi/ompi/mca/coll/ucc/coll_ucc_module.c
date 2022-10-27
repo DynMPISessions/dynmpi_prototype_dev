@@ -1,5 +1,7 @@
 /**
  * Copyright (c) 2021 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2022      Amazon.com, Inc. or its affiliates.
+ *                         All Rights reserved.
  * $COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -27,17 +29,23 @@ int mca_coll_ucc_init_query(bool enable_progress_threads, bool enable_mpi_thread
 
 static void mca_coll_ucc_module_clear(mca_coll_ucc_module_t *ucc_module)
 {
-    ucc_module->ucc_team            = NULL;
-    ucc_module->previous_allreduce  = NULL;
-    ucc_module->previous_iallreduce = NULL;
-    ucc_module->previous_barrier    = NULL;
-    ucc_module->previous_ibarrier   = NULL;
-    ucc_module->previous_bcast      = NULL;
-    ucc_module->previous_ibcast     = NULL;
-    ucc_module->previous_alltoall   = NULL;
-    ucc_module->previous_ialltoall  = NULL;
-    ucc_module->previous_alltoallv  = NULL;
-    ucc_module->previous_ialltoallv = NULL;
+    ucc_module->ucc_team             = NULL;
+    ucc_module->previous_allreduce   = NULL;
+    ucc_module->previous_iallreduce  = NULL;
+    ucc_module->previous_barrier     = NULL;
+    ucc_module->previous_ibarrier    = NULL;
+    ucc_module->previous_bcast       = NULL;
+    ucc_module->previous_ibcast      = NULL;
+    ucc_module->previous_alltoall    = NULL;
+    ucc_module->previous_ialltoall   = NULL;
+    ucc_module->previous_alltoallv   = NULL;
+    ucc_module->previous_ialltoallv  = NULL;
+    ucc_module->previous_allgather   = NULL;
+    ucc_module->previous_iallgather  = NULL;
+    ucc_module->previous_allgatherv  = NULL;
+    ucc_module->previous_iallgatherv = NULL;
+    ucc_module->previous_reduce      = NULL;
+    ucc_module->previous_ireduce     = NULL;
 }
 
 static void mca_coll_ucc_module_construct(mca_coll_ucc_module_t *ucc_module)
@@ -68,6 +76,12 @@ static void mca_coll_ucc_module_destruct(mca_coll_ucc_module_t *ucc_module)
     OBJ_RELEASE_IF_NOT_NULL(ucc_module->previous_ialltoall_module);
     OBJ_RELEASE_IF_NOT_NULL(ucc_module->previous_alltoallv_module);
     OBJ_RELEASE_IF_NOT_NULL(ucc_module->previous_ialltoallv_module);
+    OBJ_RELEASE_IF_NOT_NULL(ucc_module->previous_allgather_module);
+    OBJ_RELEASE_IF_NOT_NULL(ucc_module->previous_iallgather_module);
+    OBJ_RELEASE_IF_NOT_NULL(ucc_module->previous_allgatherv_module);
+    OBJ_RELEASE_IF_NOT_NULL(ucc_module->previous_iallgatherv_module);
+    OBJ_RELEASE_IF_NOT_NULL(ucc_module->previous_reduce_module);
+    OBJ_RELEASE_IF_NOT_NULL(ucc_module->previous_ireduce_module);
     mca_coll_ucc_module_clear(ucc_module);
 }
 
@@ -93,6 +107,12 @@ static int mca_coll_ucc_save_coll_handlers(mca_coll_ucc_module_t *ucc_module)
     SAVE_PREV_COLL_API(ialltoall);
     SAVE_PREV_COLL_API(alltoallv);
     SAVE_PREV_COLL_API(ialltoallv);
+    SAVE_PREV_COLL_API(allgather);
+    SAVE_PREV_COLL_API(iallgather);
+    SAVE_PREV_COLL_API(allgatherv);
+    SAVE_PREV_COLL_API(iallgatherv);
+    SAVE_PREV_COLL_API(reduce);
+    SAVE_PREV_COLL_API(ireduce);
     return OMPI_SUCCESS;
 }
 
@@ -214,10 +234,12 @@ static int mca_coll_ucc_init_ctx() {
         UCC_ERROR("UCC lib config read failed");
         return OMPI_ERROR;
     }
-    if (UCC_OK != ucc_lib_config_modify(lib_config, "CLS", cm->cls)) {
-        ucc_lib_config_release(lib_config);
-        UCC_ERROR("failed to modify UCC lib config to set CLS");
-        return OMPI_ERROR;
+    if (strlen(cm->cls) > 0) {
+        if (UCC_OK != ucc_lib_config_modify(lib_config, "CLS", cm->cls)) {
+            ucc_lib_config_release(lib_config);
+            UCC_ERROR("failed to modify UCC lib config to set CLS");
+            return OMPI_ERROR;
+        }
     }
 
     if (UCC_OK != ucc_init(&lib_params, lib_config, &cm->ucc_lib)) {
@@ -244,7 +266,8 @@ static int mca_coll_ucc_init_ctx() {
     ctx_params.oob.req_test     = oob_allgather_test;
     ctx_params.oob.req_free     = oob_allgather_free;
     ctx_params.oob.coll_info    = (void*)MPI_COMM_WORLD;
-    ctx_params.oob.participants = ompi_comm_size(&ompi_mpi_comm_world.comm);
+    ctx_params.oob.n_oob_eps    = ompi_comm_size(&ompi_mpi_comm_world.comm);
+    ctx_params.oob.oob_ep       = ompi_comm_rank(&ompi_mpi_comm_world.comm);
     if (UCC_OK != ucc_context_config_read(cm->ucc_lib, NULL, &ctx_config)) {
         UCC_ERROR("UCC context config read failed");
         goto cleanup_lib;
@@ -272,7 +295,7 @@ static int mca_coll_ucc_init_ctx() {
     }
     ucc_context_config_release(ctx_config);
 
-    copy_fn.attr_communicator_copy_fn  = (MPI_Comm_internal_copy_attr_function*) MPI_COMM_NULL_COPY_FN;
+    copy_fn.attr_communicator_copy_fn  = MPI_COMM_NULL_COPY_FN;
     del_fn.attr_communicator_delete_fn = ucc_comm_attr_del_fn;
     if (OMPI_SUCCESS != ompi_attr_create_keyval(COMM_ATTR, copy_fn, del_fn,
                                                 &ucc_comm_attr_keyval, NULL ,0, NULL)) {
@@ -300,6 +323,54 @@ cleanup_lib:
     cm->libucc_initialized = false;
     return OMPI_ERROR;
 }
+
+uint64_t rank_map_cb(uint64_t ep, void *cb_ctx)
+{
+    struct ompi_communicator_t *comm = cb_ctx;
+
+    return ((ompi_process_name_t*)&ompi_comm_peer_lookup(comm, ep)->super.
+            proc_name)->vpid;
+}
+
+static inline ucc_ep_map_t get_rank_map(struct ompi_communicator_t *comm)
+{
+    ucc_ep_map_t map;
+    int64_t      r1, r2, stride;
+    uint64_t     i;
+    int          is_strided;
+
+    map.ep_num = ompi_comm_size(comm);
+    if (comm == &ompi_mpi_comm_world.comm) {
+        map.type = UCC_EP_MAP_FULL;
+        return map;
+    }
+
+    /* try to detect strided pattern */
+    is_strided = 1;
+    r1         = rank_map_cb(0, comm);
+    r2         = rank_map_cb(1, comm);
+    stride     = r2 - r1;
+    for (i = 2; i < map.ep_num; i++) {
+        r1 = r2;
+        r2 = rank_map_cb(i, comm);
+        if (r2 - r1 != stride) {
+            is_strided = 0;
+            break;
+        }
+    }
+
+    if (is_strided) {
+        map.type           = UCC_EP_MAP_STRIDED;
+        map.strided.start  = r1;
+        map.strided.stride = stride;
+    } else {
+        map.type      = UCC_EP_MAP_CB;
+        map.cb.cb     = rank_map_cb;
+        map.cb.cb_ctx = (void*)comm;
+    }
+
+    return map;
+}
 /*
  * Initialize module on the communicator
  */
@@ -311,21 +382,24 @@ static int mca_coll_ucc_module_enable(mca_coll_base_module_t *module,
     ucc_status_t              status;
     int rc;
     ucc_team_params_t team_params = {
-        .mask               = UCC_TEAM_PARAM_FIELD_EP |
-                              UCC_TEAM_PARAM_FIELD_EP_RANGE |
-                              UCC_TEAM_PARAM_FIELD_OOB,
-        .oob   = {
-            .allgather      = oob_allgather,
-            .req_test       = oob_allgather_test,
-            .req_free       = oob_allgather_free,
-            .coll_info      = (void*)comm,
-            .participants   = ompi_comm_size(comm)
+        .mask   = UCC_TEAM_PARAM_FIELD_EP_MAP   |
+                  UCC_TEAM_PARAM_FIELD_EP       |
+                  UCC_TEAM_PARAM_FIELD_EP_RANGE |
+                  UCC_TEAM_PARAM_FIELD_ID,
+        .ep_map = {
+            .type      = (comm == &ompi_mpi_comm_world.comm) ?
+                          UCC_EP_MAP_FULL : UCC_EP_MAP_CB,
+            .ep_num    = ompi_comm_size(comm),
+            .cb.cb     = rank_map_cb,
+            .cb.cb_ctx = (void*)comm
         },
         .ep       = ompi_comm_rank(comm),
-        .ep_range = UCC_COLLECTIVE_EP_RANGE_CONTIG
+        .ep_range = UCC_COLLECTIVE_EP_RANGE_CONTIG,
+        .id       = ompi_comm_get_local_cid(comm)
     };
-    UCC_VERBOSE(2,"creating ucc_team for comm %p, comm_id %d, comm_size %d",
-                 (void*)comm,comm->c_contextid,ompi_comm_size(comm));
+    UCC_VERBOSE(2, "creating ucc_team for comm %p, comm_id %llu, comm_size %d",
+                (void*)comm, (long long unsigned)team_params.id,
+                ompi_comm_size(comm));
 
     if (OMPI_SUCCESS != mca_coll_ucc_save_coll_handlers(ucc_module)){
         UCC_ERROR("mca_coll_ucc_save_coll_handlers failed");
@@ -414,11 +488,14 @@ mca_coll_ucc_comm_query(struct ompi_communicator_t *comm, int *priority)
     ucc_module->comm                     = comm;
     ucc_module->super.coll_module_enable = mca_coll_ucc_module_enable;
     *priority                            = cm->ucc_priority;
-    SET_COLL_PTR(ucc_module, BARRIER,   barrier);
-    SET_COLL_PTR(ucc_module, BCAST,     bcast);
-    SET_COLL_PTR(ucc_module, ALLREDUCE, allreduce);
-    SET_COLL_PTR(ucc_module, ALLTOALL,  alltoall);
-    SET_COLL_PTR(ucc_module, ALLTOALLV, alltoallv);
+    SET_COLL_PTR(ucc_module, BARRIER,    barrier);
+    SET_COLL_PTR(ucc_module, BCAST,      bcast);
+    SET_COLL_PTR(ucc_module, ALLREDUCE,  allreduce);
+    SET_COLL_PTR(ucc_module, ALLTOALL,   alltoall);
+    SET_COLL_PTR(ucc_module, ALLTOALLV,  alltoallv);
+    SET_COLL_PTR(ucc_module, REDUCE,     reduce);
+    SET_COLL_PTR(ucc_module, ALLGATHER,  allgather);
+    SET_COLL_PTR(ucc_module, ALLGATHERV, allgatherv);
     return &ucc_module->super;
 }
 

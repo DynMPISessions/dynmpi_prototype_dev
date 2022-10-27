@@ -57,7 +57,7 @@ static int blocking = 0;
 static bool spawned = false;
 static bool check_rc = true;
 
-static char mode[3];
+static char mode[2];
 static char mode_str[64];
 char cwd[PATH_MAX];
 static int mode_num = BENCH_INCRIMENTAL;
@@ -839,9 +839,6 @@ int check_resource_change(simulation_state *state) {
     if(blocking){
         MPI_Info_set(info, "mpi_blocking", "1");
     }
-    if(rc_type_get == MPI_RC_SUB){
-        MPI_Info_set(info, "mpi_rc_type", "2");
-    }
     make_timestamp_root(&cur_p4est_timing_frame->accept_start);
     //if(0 == mpirank)
     //    printf("calling accept with %s and %s\n", delta_pset, state->pset);
@@ -851,7 +848,7 @@ int check_resource_change(simulation_state *state) {
             rc = MPI_Session_accept_res_change(&state->session, &info, delta_pset, state->pset, 0, &new_comm, &terminate);
             MPI_Comm_disconnect(&new_comm);
         }else{
-            rc = MPI_Session_accept_res_change(&state->session, &info, delta_pset, state->pset, 0, NULL, &terminate);
+            rc = MPI_Session_accept_res_change(&state->session, NULL, delta_pset, state->pset, 0, NULL, &terminate);
             return MPI_SUCCESS;
         }
     }else{
@@ -875,9 +872,6 @@ int check_resource_change(simulation_state *state) {
             MPI_ERRORS_ARE_FATAL, &state->mpicomm);
         MPI_Info state_info = create_info_from_state(state);
         MPIDYNRES_Bcast_Send_MPI_Info(state_info, 0, state->mpicomm);
-        if(mode_num == BENCH_MIXED || (mode_num == BENCH_SEQUENTIAL && mode_type == MPI_RC_SUB)){
-            MPI_Bcast(&cur_num_delta, 1, MPI_INT, 0, state->mpicomm);
-        }
         MPI_Group_free(&group);
         
     }else{
@@ -1059,11 +1053,6 @@ simulation_state initialize(int argc, char* argv[]) {
             std::cout << "ERROR pset\n";
 
         MPI_Info_free(&session_info);
-
-        if(mode_num == BENCH_MIXED || (mode_num == BENCH_SEQUENTIAL && mode_type == MPI_RC_SUB)){
-            MPI_Bcast(&cur_num_delta, 1, MPI_INT, 0, state.mpicomm);
-            cur_num_delta += num_delta;
-        }
     }
 
     if(0 == strcmp(c_mode, "s_")){
@@ -1125,7 +1114,7 @@ int simulate(simulation_state *state){
     int rank;
     MPI_Comm_rank(state->mpicomm, &rank);
     timings_my_rank = rank;
-    printf("Rank %d starting simulation\n", rank);
+
     init_add_timing(p4est_timing_list, (void**) &cur_p4est_timing_frame, sizeof(timing_frame_p4est_t));
 
     make_timestamp_base(&cur_base_timing_frame->sim_start);
@@ -1143,11 +1132,11 @@ int simulate(simulation_state *state){
         int size_before, size_after;
         MPI_Comm_size(state->mpicomm, &size_before);
 
-        if(rank == 0)
-            printf("start of phase %d ---------> %d processes\n", state->current_phase, size_before);
+        //if(rank == 0)
+        //    printf("start of phase %d ---------> %d processes\n", state->current_phase, size_before);
 
         int status;
-        if(state->current_phase != 1 && !state->is_new && check_rc){
+        if(!state->is_new && check_rc){
             //if(rank == 0)
             //    printf("start of check_resource change\n");
             make_timestamp_root(&cur_p4est_timing_frame->rc_start);
@@ -1161,7 +1150,7 @@ int simulate(simulation_state *state){
             if(state->p4est == NULL)
                 break;
         }
-        printf("Rank %d finished res change\n", rank);
+
         MPI_Comm_size(state->mpicomm, &size_after);
         if(changed) {
             if(state->is_new || size_after > size_before){

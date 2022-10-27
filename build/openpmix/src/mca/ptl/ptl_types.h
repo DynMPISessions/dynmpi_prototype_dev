@@ -13,7 +13,7 @@
  * Copyright (c) 2007-2011 Cisco Systems, Inc.  All rights reserved.
  * Copyright (c) 2012-2013 Los Alamos National Security, Inc. All rights reserved.
  * Copyright (c) 2014-2020 Intel, Inc.  All rights reserved.
- * Copyright (c) 2021      Nanook Consulting.  All rights reserved.
+ * Copyright (c) 2021-2022 Nanook Consulting.  All rights reserved.
  * $COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -30,7 +30,7 @@
 #define PMIX_PTL_TYPES_H_
 
 #include "src/include/pmix_config.h"
-#include "src/include/types.h"
+#include "src/include/pmix_types.h"
 
 #ifdef HAVE_UNISTD_H
 #    include <unistd.h>
@@ -50,12 +50,12 @@
 #ifdef HAVE_SYS_TYPES_H
 #    include <sys/types.h>
 #endif
-#include PMIX_EVENT_HEADER
+#include <event.h>
 
 #include "src/class/pmix_list.h"
 #include "src/mca/bfrops/bfrops_types.h"
 #include "src/mca/ptl/base/ptl_base_handshake.h"
-#include "src/util/output.h"
+#include "src/util/pmix_output.h"
 
 BEGIN_C_DECLS
 
@@ -331,6 +331,20 @@ typedef struct pmix_listener_t {
 } pmix_listener_t;
 PMIX_CLASS_DECLARATION(pmix_listener_t);
 
+#define PMIX_LISTENER_STATIC_INIT           \
+{                                           \
+    .super = PMIX_LIST_ITEM_STATIC_INIT,    \
+    .protocol = PMIX_PROTOCOL_UNDEF,        \
+    .socket = 0,                            \
+    .varname = NULL,                        \
+    .uri = NULL,                            \
+    .owner = 0,                             \
+    .owner_given = false,                   \
+    .group = 0,                             \
+    .mode = 0,                              \
+    .cbfunc = NULL                          \
+}
+
 /* provide a backdoor to the framework output for debugging */
 PMIX_EXPORT extern int pmix_ptl_base_output;
 
@@ -360,7 +374,7 @@ PMIX_EXPORT extern int pmix_ptl_base_output;
     do {                                                                                        \
         pmix_ptl_send_t *snd;                                                                   \
         uint32_t nbytes;                                                                        \
-        pmix_output_verbose(2, pmix_ptl_base_output,                                            \
+        pmix_output_verbose(5, pmix_ptl_base_output,                                            \
                             "[%s:%d] queue callback called: reply to %s:%d on tag %d size %d",  \
                             __FILE__, __LINE__, (p)->info->pname.nspace, (p)->info->pname.rank, \
                             (t), (int) (b)->bytes_used);                                        \

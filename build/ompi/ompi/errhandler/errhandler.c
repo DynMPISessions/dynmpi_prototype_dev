@@ -213,7 +213,6 @@ int ompi_errhandler_init(void)
     ompi_process_info.initial_errhandler = strndup(env, MPI_MAX_INFO_VAL);
   }
 
-/* HPP TODO CHECK */
   ompi_initial_errhandler_init();
   ompi_mpi_instance_append_finalize (ompi_errhandler_finalize);
 
@@ -301,7 +300,9 @@ ompi_errhandler_t *ompi_errhandler_create(ompi_errhandler_type_t object_type,
             }
         }
 
-        new_errhandler->eh_fort_fn = (ompi_errhandler_fortran_handler_fn_t *)func;
+        if (NULL != new_errhandler) {
+            new_errhandler->eh_fort_fn = (ompi_errhandler_fortran_handler_fn_t *)func;
+        }
 
     }
 
@@ -354,9 +355,9 @@ int ompi_errhandler_proc_failed_internal(ompi_proc_t* ompi_proc, int status, boo
 
     /* Communicator State:
      * Let them know about the failure. */
-    max_num_comm = opal_pointer_array_get_size(&ompi_comm_array);
+    max_num_comm = opal_pointer_array_get_size(&ompi_mpi_communicators);
     for( i = 0; i < max_num_comm; ++i ) {
-        comm = (ompi_communicator_t *)opal_pointer_array_get_item(&ompi_comm_array, i);
+        comm = (ompi_communicator_t *)opal_pointer_array_get_item(&ompi_mpi_communicators, i);
         if( NULL == comm ) {
             continue;
         }
@@ -419,7 +420,7 @@ int ompi_errhandler_proc_failed_internal(ompi_proc_t* ompi_proc, int status, boo
      * forward through errors in collectives" as this is less intrusive to the
      * code base.) */
     if( forward ) {
-        /* TODO: this to become redundand when pmix has rbcast */
+        /* TODO: this to become redundant when pmix has rbcast */
         ompi_comm_failure_propagate(&ompi_mpi_comm_world.comm, ompi_proc, status);
         /* Let pmix know: flush modex information, propagate to connect/accept
          * jobs; we will tell our local daemon, and it will do the proper thing */
@@ -429,11 +430,12 @@ int ompi_errhandler_proc_failed_internal(ompi_proc_t* ompi_proc, int status, boo
         pmix_info_t pmix_info[1];
         pmix_status_t prc;
 
+        assert(OPAL_ERR_PROC_ABORTED == status);
         OPAL_PMIX_CONVERT_NAME(&pmix_source, OMPI_PROC_MY_NAME);
         OPAL_PMIX_CONVERT_NAME(&pmix_proc, &ompi_proc->super.proc_name);
         PMIX_INFO_CONSTRUCT(&pmix_info[0]);
         PMIX_INFO_LOAD(&pmix_info[0], PMIX_EVENT_AFFECTED_PROC, &pmix_proc, PMIX_PROC);
-        prc = PMIx_Notify_event(status, &pmix_source, PMIX_RANGE_LOCAL,
+        prc = PMIx_Notify_event(PMIX_ERR_PROC_ABORTED, &pmix_source, PMIX_RANGE_LOCAL,
                                 pmix_info, 1, NULL, &active);
         if( PMIX_SUCCESS != prc &&
             PMIX_OPERATION_SUCCEEDED != prc ) {
@@ -482,7 +484,7 @@ static void *ompi_errhandler_event_cb(int fd, int flags, void *context) {
                 continue; /* we are not 'MPI connected' with this proc. */
             }
             assert( !ompi_proc_is_sentinel(proc) );
-            ompi_errhandler_proc_failed_internal(proc, status, false);
+            ompi_errhandler_proc_failed_internal(proc, OPAL_ERR_PROC_ABORTED, false);
         }
         opal_event_del(&event->super);
         free(event);

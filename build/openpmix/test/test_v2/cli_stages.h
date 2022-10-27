@@ -20,10 +20,10 @@
 #include "src/class/pmix_list.h"
 #include "src/include/pmix_globals.h"
 #include "src/mca/ptl/base/base.h"
+#include "src/include/pmix_config.h"
 #include <errno.h>
 #include <fcntl.h>
 #include <signal.h>
-#include <src/include/pmix_config.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/time.h>
@@ -62,6 +62,7 @@ extern cli_info_t *cli_info;
 extern int cli_info_cnt;
 extern bool test_abort;
 extern bool test_complete;
+extern int test_timeout;
 
 int cli_rank(cli_info_t *cli);
 void cli_init(int nprocs);

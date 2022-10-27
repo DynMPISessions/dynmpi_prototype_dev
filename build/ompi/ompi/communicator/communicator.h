@@ -22,7 +22,7 @@
  * Copyright (c) 2015      Research Organization for Information Science
  *                         and Technology (RIST). All rights reserved.
  * Copyright (c) 2016-2017 IBM Corporation. All rights reserved.
- * Copyright (c) 2018-2021 Triad National Security, LLC. All rights
+ * Copyright (c) 2018-2022 Triad National Security, LLC. All rights
  *                         reserved.
  * $COPYRIGHT$
  *
@@ -139,7 +139,7 @@ OMPI_DECLSPEC OBJ_CLASS_DECLARATION(ompi_communicator_t);
 #define OMPI_COMM_CID_IS_LOWER(comm1,comm2) ( ((comm1)->c_index < (comm2)->c_index)? 1:0)
 
 OMPI_DECLSPEC extern opal_hash_table_t ompi_comm_hash;
-OMPI_DECLSPEC extern opal_pointer_array_t ompi_comm_array;
+OMPI_DECLSPEC extern opal_pointer_array_t ompi_mpi_communicators;
 OMPI_DECLSPEC extern opal_pointer_array_t ompi_comm_f_to_c_table;
 
 struct ompi_comm_extended_cid_t {
@@ -265,7 +265,6 @@ struct ompi_communicator_t {
     ompi_comm_extended_cid_t      c_contextid;
     ompi_comm_extended_cid_block_t c_contextidb;
     uint32_t                      c_index;
-    int                           *c_index_vec;
     int                           c_my_rank;
     uint32_t                      c_flags; /* flags, e.g. intercomm,
                                               topology, etc. */
@@ -274,7 +273,7 @@ struct ompi_communicator_t {
                to a child*/
     int c_id_start_index; /* the starting index of the block of cids
                  allocated to this communicator*/
-    uint32_t c_epoch;  /* Identifier used to differenciate between two communicators
+    uint32_t c_epoch;  /* Identifier used to differentiate between two communicators
                           using the same c_contextid (not at the same time, obviously) */
 
     ompi_group_t        *c_local_group;
@@ -315,6 +314,9 @@ struct ompi_communicator_t {
     /* Hooks for PML to hang things */
     struct mca_pml_comm_t  *c_pml_comm;
 
+    /* Hooks for MTL to hang things */
+    struct mca_mtl_comm_t  *c_mtl_comm;
+
     /* Collectives module interface and data */
     mca_coll_base_comm_coll_t *c_coll;
 
@@ -344,7 +346,7 @@ struct ompi_communicator_t {
 typedef struct ompi_communicator_t ompi_communicator_t;
 
 /**
- * Padded struct to maintain back compatibiltiy.
+ * Padded struct to maintain back compatibility.
  *
  * The following ompi_predefined_xxx_t structure is used to maintain
  * backwards binary compatibility for MPI applications compiled
@@ -393,7 +395,7 @@ typedef struct ompi_communicator_t ompi_communicator_t;
  *
  * - union of struct and padding - Similar to current implementation
  *   except using a union for the parent.  This worked except in cases
- *   where the compilers did not support C99 union static initalizers.
+ *   where the compilers did not support C99 union static initializers.
  *   It would have been a pain to convert a bunch of the code to use
  *   non-static initializers (e.g., MPI datatypes).
  */
@@ -450,7 +452,7 @@ OMPI_DECLSPEC extern ompi_predefined_communicator_t ompi_mpi_comm_null;
 
 /*
  * These variables are for the MPI F03 bindings (F03 must bind Fortran
- * varaiables to symbols; it cannot bind Fortran variables to the
+ * variables to symbols; it cannot bind Fortran variables to the
  * address of a C variable).
  */
 OMPI_DECLSPEC extern ompi_predefined_communicator_t *ompi_mpi_comm_world_addr;
@@ -478,7 +480,7 @@ OMPI_DECLSPEC extern ompi_predefined_communicator_t *ompi_mpi_comm_null_addr;
  * ompi_comm_invalid() as originally coded -- per the MPI-1
  * definition, where MPI_COMM_NULL is an invalid communicator.
  * The MPI_Comm_c2f() function, therefore, calls
- * ompi_comm_invalid() but also explictily checks to see if the
+ * ompi_comm_invalid() but also explicitly checks to see if the
  * handle is MPI_COMM_NULL.
  */
 static inline int ompi_comm_invalid (const ompi_communicator_t* comm)
@@ -548,7 +550,7 @@ static inline bool ompi_comm_compare_cids (const ompi_communicator_t *comm1, con
 static inline ompi_communicator_t *ompi_comm_lookup (const uint32_t c_index)
 {
     /* array of pointers to communicators, indexed by context ID */
-    return (ompi_communicator_t *) opal_pointer_array_get_item (&ompi_comm_array, c_index);
+    return (ompi_communicator_t *) opal_pointer_array_get_item (&ompi_mpi_communicators, c_index);
 }
 
 static inline ompi_communicator_t *ompi_comm_lookup_cid (const ompi_comm_extended_cid_t cid)
@@ -568,6 +570,11 @@ static inline struct ompi_proc_t* ompi_comm_peer_lookup (const ompi_communicator
 #endif
     /*return comm->c_remote_group->grp_proc_pointers[peer_id];*/
     return ompi_group_peer_lookup(comm->c_remote_group,peer_id);
+}
+
+static inline bool ompi_comm_instances_same(const ompi_communicator_t *comm1, const ompi_communicator_t *comm2)
+{
+    return comm1->instance == comm2->instance;
 }
 
 #if OPAL_ENABLE_FT_MPI
@@ -929,19 +936,6 @@ int ompi_comm_compare(ompi_communicator_t *comm1, ompi_communicator_t *comm2, in
 OMPI_DECLSPEC int ompi_comm_free (ompi_communicator_t **comm);
 
 /**
- * allocate a new communicator structure
- * @param local_group_size
- * @param remote_group_size
- *
- * This routine allocates the structure, the according local and
- * remote groups, the proc-arrays in the local and remote group.
- * It furthermore sets the fortran index correctly,
- * and sets all other elements to zero.
- */
-ompi_communicator_t* ompi_comm_allocate (int local_group_size,
-                                         int remote_group_size);
-
-/**
  * allocate new communicator ID
  * @param newcomm:    pointer to the new communicator
  * @param oldcomm:    original comm
@@ -1065,7 +1059,7 @@ int ompi_comm_determine_first ( ompi_communicator_t *intercomm,
                                 int high );
 
 /**
- * This is a routine determining wether the local or the
+ * This is a routine determining whether the local or the
  * remote group will be first in the new intra-comm.
  * It does not communicate to exchange the "high" values; used in Agree
  */

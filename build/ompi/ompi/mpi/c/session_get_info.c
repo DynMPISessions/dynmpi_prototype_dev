@@ -60,7 +60,7 @@ int MPI_Session_get_info (MPI_Session session, MPI_Info *info_used)
 
     opal_info_t *opal_info_used = &(*info_used)->super;
 
-    opal_info_dup_mpistandard (session->super.s_info, &opal_info_used);
+    opal_info_dup (session->super.s_info, &opal_info_used);
 
     return MPI_SUCCESS;
 }

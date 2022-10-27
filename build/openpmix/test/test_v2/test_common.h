@@ -6,9 +6,9 @@
  *                         and Technology (RIST). All rights reserved.
  * Copyright (c) 2015-2018 Mellanox Technologies, Inc.
  *                         All rights reserved.
- * Copyright (c) 2020      Triad National Security, LLC.
+ * Copyright (c) 2020-2021 Triad National Security, LLC.
  *                         All rights reserved.
- * Copyright (c) 2021      Nanook Consulting.  All rights reserved.
+ * Copyright (c) 2021-2022 Nanook Consulting.  All rights reserved.
  * $COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -20,8 +20,8 @@
 #ifndef TEST_COMMON_H
 #define TEST_COMMON_H
 
-#include <pmix_common.h>
-#include <src/include/pmix_config.h>
+#include "pmix_common.h"
+#include "src/include/pmix_config.h"
 
 #include <inttypes.h>
 #include <stdint.h>
@@ -29,11 +29,11 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/time.h>
-#include <unistd.h>
+#include <math.h>
 
 #include "src/class/pmix_list.h"
 #include "src/include/pmix_globals.h"
-#include "src/util/argv.h"
+#include "src/util/pmix_argv.h"
 
 #define TEST_NAMESPACE "smoky_nspace"
 
@@ -41,14 +41,16 @@
 
 #define PMIXT_VALIDATION_PARAMS_VER 1
 
-#define PMIXT_CHECK_EXPECT(rc, expected_rc, params, vparams)                               \
-    do {                                                                                   \
-        int pmix_rc = (rc);                                                                \
-        if (expected_rc != pmix_rc) {                                                      \
-            TEST_ERROR(("Client ns %s rank %d: PMIx call failed: %s", vparams.pmix_nspace, \
-                        vparams.pmix_rank, PMIx_Error_string(pmix_rc)));                   \
-            exit(-1);                                                                      \
-        }                                                                                  \
+#define PMIXT_CHECK_EXPECT(fn_call, expected_rc, params, vparams)                        \
+    do {                                                                                 \
+       int pmix_rc = (fn_call);                                                          \
+       if (expected_rc != pmix_rc) {                                                     \
+           TEST_ERROR(("Client ns: %s, Rank: %d: PMIx call: %s  failed with error: %s ", \
+               vparams.pmix_nspace, vparams.pmix_rank,                                   \
+               #fn_call,                                                                 \
+           PMIx_Error_string(pmix_rc)));                                                 \
+           exit(-1);                                                                     \
+       }                                                                                 \
     } while (0)
 
 #define PMIXT_CHECK(stmt, params, vparams) PMIXT_CHECK_EXPECT(stmt, PMIX_SUCCESS, params, vparams)
@@ -73,7 +75,7 @@ extern FILE *pmixt_outfile;
     {                                                                                        \
         struct timeval tv;                                                                   \
         gettimeofday(&tv, NULL);                                                             \
-        double ts = tv.tv_sec + 1E-6 * tv.tv_usec;                                           \
+        double ts = (double)tv.tv_sec + 1E-6 * (double)tv.tv_usec;                           \
         fprintf(pmixt_outfile, "==%d== [%lf] %s:%s: %s\n", getpid(), ts, STRIPPED_FILE_NAME, \
                 __func__, pmix_test_output_prepare x);                                       \
         fflush(pmixt_outfile);                                                               \
@@ -92,7 +94,7 @@ extern FILE *pmixt_outfile;
     {                                                                                            \
         struct timeval tv;                                                                       \
         gettimeofday(&tv, NULL);                                                                 \
-        double ts = tv.tv_sec + 1E-6 * tv.tv_usec;                                               \
+        double ts = (double)tv.tv_sec + 1E-6 * (double)tv.tv_usec;                               \
         fprintf(stderr, "==%d== [%lf] ERROR [%s:%d:%s]: %s\n", getpid(), ts, STRIPPED_FILE_NAME, \
                 __LINE__, __func__, pmix_test_output_prepare x);                                 \
         fflush(stderr);                                                                          \
@@ -118,24 +120,25 @@ extern FILE *pmixt_outfile;
 #define MAX_DIGIT_LEN        10
 #define TEST_REPLACE_DEFAULT "3:1"
 
-#define PMIXT_SET_FILE(prefix, ns_id, rank)                             \
-    {                                                                   \
-        char *fname = malloc(strlen(prefix) + MAX_DIGIT_LEN + 2);       \
-        sprintf(fname, "%s.%d.%d", prefix, ns_id, rank);                \
-        pmixt_outfile = fopen(fname, "w");                              \
-        free(fname);                                                    \
-        if (NULL == pmixt_outfile) {                                    \
-            fprintf(stderr, "Cannot open file %s for writing!", fname); \
-            exit(1);                                                    \
-        }                                                               \
-    }
+#define TEST_DEFAULT_FENCE_TIMEOUT_RATIO 100
+#define TEST_DEFAULT_FENCE_TIME_MULTIPLIER 100
 
-#define PMIXT_CLOSE_FILE()             \
-    {                                  \
-        if (stderr != pmixt_outfile) { \
-            fclose(pmixt_outfile);     \
-        }                              \
-    }
+#define PMIXT_SET_FILE(prefix, ns_id, rank) { \
+    char *fname = malloc( strlen(prefix) + MAX_DIGIT_LEN + 2 ); \
+    sprintf(fname, "%s.%d.%d", prefix, ns_id, rank); \
+    pmixt_outfile = fopen(fname, "w"); \
+    if( NULL == pmixt_outfile ){ \
+        fprintf(stderr, "Cannot open file %s for writing!", fname); \
+        exit(1); \
+    } \
+    free(fname); \
+}
+
+#define PMIXT_CLOSE_FILE() { \
+    if ( stderr != pmixt_outfile ) { \
+        fclose(pmixt_outfile); \
+    } \
+}
 
 /* a convenience macro for checking keys (test suite-specific) */
 #define PMIXT_CHECK_KEY(a, b) (0 == strncmp((a), (b), PMIX_MAX_KEYLEN))
@@ -171,7 +174,7 @@ typedef struct {
     char pmix_hostname[PMIX_MAX_KEYLEN];
 } node_map;
 
-node_map *nodes;
+extern node_map *nodes;
 
 // order of these fields should be in order that we introduce them
 typedef struct {
@@ -194,8 +197,7 @@ typedef struct {
     // more as needed
 } validation_params;
 
-validation_params val_params;
-char *v_params_ascii_str;
+extern char *v_params_ascii_str;
 
 typedef struct {
     char *binary;
@@ -208,12 +210,18 @@ typedef struct {
     int nonblocking;
     int ns_size;
     int ns_id;
+    bool time_fence;
+    double fence_timeout_ratio;
+    double fence_time_multiplier;
 } test_params;
 
-extern test_params params;
 
-void parse_cmd(int argc, char **argv, test_params *params, validation_params *v_params);
+void parse_cmd_server(int argc, char **argv, test_params *params, validation_params *v_params, char ***t_argv);
+void parse_cmd_client(int argc, char **argv, test_params *params, validation_params *v_params,
+                      int (*parse_test_ptr)(int *, int, char **, test_params *, validation_params *));
 void parse_rank_placement_string(char *placement_str, int num_nodes);
+void populate_nodes_default_placement(uint32_t num_nodes, int num_procs);
+void populate_nodes_custom_placement_string(char *placement_str, int num_nodes);
 
 int parse_fence(char *fence_param, int store);
 int parse_noise(char *noise_param, int store);
@@ -221,20 +229,24 @@ int parse_replace(char *replace_param, int store, int *key_num);
 
 void default_params(test_params *params, validation_params *v_params);
 void init_nodes(int num_nodes);
+void free_nodes(int num_nodes);
 void free_params(test_params *params, validation_params *vparams);
-void set_client_argv(test_params *params, char ***argv);
+void set_client_argv(test_params *params, char ***argv, char **ltest_argv);
 
-void pmixt_exit(int exit_code);
-void pmixt_fix_rank_and_ns(pmix_proc_t *this_proc, test_params *params,
-                           validation_params *v_params);
+void pmixt_exit(int exit_code) __attribute__((__noreturn__));
+void pmixt_fix_rank_and_ns(pmix_proc_t *this_proc, validation_params *v_params);
 void pmixt_post_init(pmix_proc_t *this_proc, test_params *params, validation_params *val_params);
 void pmixt_post_finalize(pmix_proc_t *this_proc, test_params *params, validation_params *v_params);
-void pmixt_pre_init(int argc, char **argv, test_params *params, validation_params *v_params);
-void pmixt_validate_predefined(pmix_proc_t *myproc, const pmix_key_t key, pmix_value_t *value,
+void pmixt_pre_init(int argc, char **argv, test_params *params, validation_params *v_params,
+                    int (*parse_tst_ptr)(int *, int, char **, test_params *, validation_params *));
+void pmixt_validate_predefined(pmix_proc_t *myproc, const char *key, pmix_value_t *value,
                                const pmix_data_type_t expected_type, validation_params *val_params);
 
 char *pmixt_encode(const void *val, size_t vallen);
 ssize_t pmixt_decode(const char *data, void *decdata, size_t buffsz);
+
+void sleep_ms(unsigned long milliseconds);
+double avg_fence_time(void);
 
 typedef struct {
     pmix_list_item_t super;
@@ -305,7 +317,7 @@ typedef struct {
         TEST_VERBOSE(("%s:%d want to get from %s:%d key %s", my_nspace, my_rank, ns, r, key));  \
         if (blocking) {                                                                         \
             if (PMIX_SUCCESS != (rc = PMIx_Get(&foobar, key, NULL, 0, &val))) {                 \
-                if (!((rc == PMIX_ERR_NOT_FOUND || rc == PMIX_ERR_PROC_ENTRY_NOT_FOUND)         \
+                if (!((rc == PMIX_ERR_NOT_FOUND)         \
                       && ok_notfnd)) {                                                          \
                     TEST_ERROR(("%s:%d: PMIx_Get failed: %s from %s:%d, key %s", my_nspace,     \
                                 my_rank, PMIx_Error_string(rc), ns, r, key));                   \
@@ -335,8 +347,7 @@ typedef struct {
         }                                                                                       \
         if (PMIX_SUCCESS == rc) {                                                               \
             if (PMIX_SUCCESS != cbdata.status) {                                                \
-                if (!((cbdata.status == PMIX_ERR_NOT_FOUND                                      \
-                       || cbdata.status == PMIX_ERR_PROC_ENTRY_NOT_FOUND)                       \
+                if (!((cbdata.status == PMIX_ERR_NOT_FOUND)                                     \
                       && ok_notfnd)) {                                                          \
                     TEST_ERROR(("%s:%d: PMIx_Get_nb failed: %s from %s:%d, key=%s", my_nspace,  \
                                 my_rank, PMIx_Error_string(rc), my_nspace, r, key));            \
@@ -370,7 +381,7 @@ typedef struct {
             if (data_ex) {                                                                    \
                 bool value = 1;                                                               \
                 PMIX_INFO_CREATE(info, 1);                                                    \
-                (void) strncpy(info->key, PMIX_COLLECT_DATA, PMIX_MAX_KEYLEN);                \
+                pmix_strncpy(info->key, PMIX_COLLECT_DATA, PMIX_MAX_KEYLEN);                \
                 pmix_value_load(&info->value, &value, PMIX_BOOL);                             \
                 ninfo = 1;                                                                    \
             }                                                                                 \

@@ -34,52 +34,22 @@
 /* #undef AC_APPLE_UNIVERSAL_BUILD */
 
 /* The normal alignment of `bool', in bytes. */
-/* #undef ALIGNOF_BOOL */
-
-/* The normal alignment of `char', in bytes. */
-/* #undef ALIGNOF_CHAR */
+#define ALIGNOF_BOOL 1
 
 /* The normal alignment of `double', in bytes. */
-/* #undef ALIGNOF_DOUBLE */
-
-/* The normal alignment of `float', in bytes. */
-/* #undef ALIGNOF_FLOAT */
+#define ALIGNOF_DOUBLE 8
 
 /* The normal alignment of `int', in bytes. */
-/* #undef ALIGNOF_INT */
-
-/* The normal alignment of `int16_t', in bytes. */
-/* #undef ALIGNOF_INT16_T */
-
-/* The normal alignment of `int32_t', in bytes. */
-/* #undef ALIGNOF_INT32_T */
-
-/* The normal alignment of `int64_t', in bytes. */
-/* #undef ALIGNOF_INT64_T */
-
-/* The normal alignment of `int8_t', in bytes. */
-/* #undef ALIGNOF_INT8_T */
+#define ALIGNOF_INT 4
 
 /* The normal alignment of `long', in bytes. */
-/* #undef ALIGNOF_LONG */
-
-/* The normal alignment of `long double', in bytes. */
-/* #undef ALIGNOF_LONG_DOUBLE */
+#define ALIGNOF_LONG 8
 
 /* The normal alignment of `long long', in bytes. */
-/* #undef ALIGNOF_LONG_LONG */
-
-/* The normal alignment of `short', in bytes. */
-/* #undef ALIGNOF_SHORT */
+#define ALIGNOF_LONG_LONG 8
 
 /* The normal alignment of `size_t', in bytes. */
-/* #undef ALIGNOF_SIZE_T */
-
-/* The normal alignment of `void *', in bytes. */
-/* #undef ALIGNOF_VOID_P */
-
-/* The normal alignment of `wchar_t', in bytes. */
-/* #undef ALIGNOF_WCHAR_T */
+#define ALIGNOF_SIZE_T 8
 
 /* defined to 1 if cray wlm available, 0 otherwise */
 /* #undef CRAY_WLM_DETECT */
@@ -95,12 +65,6 @@
 
 /* Define to 1 if you have the <crt_externs.h> header file. */
 /* #undef HAVE_CRT_EXTERNS_H */
-
-/* Define to 1 if you have the <curl.h> header file. */
-/* #undef HAVE_CURL_H */
-
-/* Define to 1 if you have the <cxi.h> header file. */
-/* #undef HAVE_CXI_H */
 
 /* Define to 1 if you have the declaration of `AF_INET6', and to 0 if you
    don't. */
@@ -131,9 +95,6 @@
 /* Define to 1 if you have the <dlfcn.h> header file. */
 #define HAVE_DLFCN_H 1
 
-/* Define to 1 if you have the <event.h> header file. */
-#define HAVE_EVENT_H 1
-
 /* Define to 1 if you have the `execve' function. */
 #define HAVE_EXECVE 1
 
@@ -149,17 +110,11 @@
 /* Define to 1 if you have the `getpeerucred' function. */
 /* #undef HAVE_GETPEERUCRED */
 
-/* Define to 1 if you have the <glob.h> header file. */
-/* #undef HAVE_GLOB_H */
-
 /* Define to 1 if you have the <grp.h> header file. */
 #define HAVE_GRP_H 1
 
 /* Define to 1 if you have the <hostLib.h> header file. */
 /* #undef HAVE_HOSTLIB_H */
-
-/* Define to 1 if you have the <hwloc.h> header file. */
-#define HAVE_HWLOC_H 1
 
 /* Define to 1 if you have the <ifaddrs.h> header file. */
 #define HAVE_IFADDRS_H 1
@@ -185,15 +140,6 @@
 /* Define to 1 if you have the <ioLib.h> header file. */
 /* #undef HAVE_IOLIB_H */
 
-/* Define to 1 if you have the <jansson.h> header file. */
-/* #undef HAVE_JANSSON_H */
-
-/* Define to 1 if you have the `event_core' library (-levent_core). */
-#define HAVE_LIBEVENT_CORE 1
-
-/* Define to 1 if you have the `event_pthreads' library (-levent_pthreads). */
-#define HAVE_LIBEVENT_PTHREADS 1
-
 /* Define to 1 if you have the <libgen.h> header file. */
 #define HAVE_LIBGEN_H 1
 
@@ -206,17 +152,8 @@
 /* Define to 1 if the system has the type `long long'. */
 #define HAVE_LONG_LONG 1
 
-/* Define to 1 if you have the <ltdl.h> header file. */
-/* #undef HAVE_LTDL_H */
-
-/* Define to 1 if you have the <lustre/lustreapi.h> header file. */
-/* #undef HAVE_LUSTRE_LUSTREAPI_H */
-
 /* Define to 1 if you have the <memory.h> header file. */
 #define HAVE_MEMORY_H 1
-
-/* Define to 1 if you have the <munge.h> header file. */
-/* #undef HAVE_MUNGE_H */
 
 /* Define to 1 if you have the <netdb.h> header file. */
 #define HAVE_NETDB_H 1
@@ -239,8 +176,8 @@
 /* Define to 1 if you have the `posix_fallocate' function. */
 #define HAVE_POSIX_FALLOCATE 1
 
-/* Define to 1 if you have the <psm2.h> header file. */
-/* #undef HAVE_PSM2_H */
+/* Define to 1 if you have the `pthread_setaffinity_np' function. */
+#define HAVE_PTHREAD_SETAFFINITY_NP 1
 
 /* Define to 1 if the system has the type `ptrdiff_t'. */
 #define HAVE_PTRDIFF_T 1
@@ -250,9 +187,6 @@
 
 /* Define to 1 if you have the <pty.h> header file. */
 #define HAVE_PTY_H 1
-
-/* Define to 1 if you have the <rdma/fabric.h> header file. */
-/* #undef HAVE_RDMA_FABRIC_H */
 
 /* Define to 1 if you have the `setenv' function. */
 #define HAVE_SETENV 1
@@ -437,9 +371,6 @@
 /* Define to 1 if you have the <time.h> header file. */
 #define HAVE_TIME_H 1
 
-/* Define to 1 if you have the <tm.h> header file. */
-/* #undef HAVE_TM_H */
-
 /* Define to 1 if you have the <ucred.h> header file. */
 /* #undef HAVE_UCRED_H */
 
@@ -487,17 +418,13 @@
 #define HAVE_WAITPID 1
 
 /* Define to 1 if you have the <zlib.h> header file. */
-/* #undef HAVE_ZLIB_H */
+#define HAVE_ZLIB_H 1
 
 /* Define to 1 if the system has the type `__int128'. */
 #define HAVE___INT128 1
 
-/* Define to the sub-directory in which libtool stores uninstalled libraries.
-   */
+/* Define to the sub-directory where libtool stores uninstalled libraries. */
 #define LT_OBJDIR ".libs/"
-
-/* Define to 1 if your C compiler doesn't accept -c and -o together. */
-/* #undef NO_MINUS_C_MINUS_O */
 
 /* Define to the address where bug reports for this package should be sent. */
 #define PACKAGE_BUGREPORT "https://github.com/openpmix/openpmix/issues"
@@ -506,7 +433,7 @@
 #define PACKAGE_NAME "pmix"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "pmix 4.1.0a1"
+#define PACKAGE_STRING "pmix 5.0.0a1"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "pmix"
@@ -515,94 +442,40 @@
 #define PACKAGE_URL ""
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "4.1.0a1"
-
-/* Alignment of type bool */
-#define PMIX_ALIGNMENT_BOOL 1
-
-/* Alignment of type char */
-#define PMIX_ALIGNMENT_CHAR 1
-
-/* Alignment of type double */
-#define PMIX_ALIGNMENT_DOUBLE 8
-
-/* Alignment of type float */
-#define PMIX_ALIGNMENT_FLOAT 4
-
-/* Alignment of type int */
-#define PMIX_ALIGNMENT_INT 4
-
-/* Alignment of type int16_t */
-#define PMIX_ALIGNMENT_INT16 2
-
-/* Alignment of type int32_t */
-#define PMIX_ALIGNMENT_INT32 4
-
-/* Alignment of type int64_t */
-#define PMIX_ALIGNMENT_INT64 8
-
-/* Alignment of type int8_t */
-#define PMIX_ALIGNMENT_INT8 1
-
-/* Alignment of type long */
-#define PMIX_ALIGNMENT_LONG 8
-
-/* Alignment of type long double */
-/* #undef PMIX_ALIGNMENT_LONG_DOUBLE */
-
-/* Alignment of type long long */
-#define PMIX_ALIGNMENT_LONG_LONG 8
-
-/* Alignment of type short */
-#define PMIX_ALIGNMENT_SHORT 2
-
-/* Alignment of type size_t */
-#define PMIX_ALIGNMENT_SIZE_T 8
-
-/* Alignment of type void * */
-#define PMIX_ALIGNMENT_VOID_P 8
-
-/* Alignment of type wchar_t */
-#define PMIX_ALIGNMENT_WCHAR 4
+#define PACKAGE_VERSION "5.0.0a1"
 
 /* Use C11 style atomics */
-#define PMIX_ATOMIC_C11 0
+#define PMIX_ATOMIC_C11 1
 
 /* Use GCC builtin style atomics */
-#define PMIX_ATOMIC_GCC_BUILTIN 1
+#define PMIX_ATOMIC_GCC_BUILTIN 0
 
 /* whether building on x86_64 platform */
 #define PMIX_ATOMIC_X86_64 1
 
-/* The compiler $lower which PMIx was built with */
-#define PMIX_BUILD_PLATFORM_COMPILER_FAMILYID 1
+/* The compiler $lower which OMPI was built with */
+#define PMIX_BUILD_PLATFORM_COMPILER_FAMILYID 0
 
-/* The compiler $lower which PMIX was built with */
-#define PMIX_BUILD_PLATFORM_COMPILER_FAMILYNAME GNU
-
-/* The compiler $lower which PMIx was built with */
-#define PMIX_BUILD_PLATFORM_COMPILER_VERSION 264197
-
-/* The compiler $lower which PMIx was built with */
-#define PMIX_BUILD_PLATFORM_COMPILER_VERSION_STR 4.8.5
+/* The compiler $lower which OMPI was built with */
+#define PMIX_BUILD_PLATFORM_COMPILER_VERSION 0
 
 /* OMPI underlying C compiler */
 #define PMIX_CC "gcc"
 
 /* Capture the configure cmd line */
-#define PMIX_CONFIGURE_CLI " \'--prefix=/opt/hpc/external/pmix\' \'--with-hwloc=/opt/hpc/local/hwloc\' \'--with-libevent=/opt/hpc/local/libevent\'"
+#define PMIX_CONFIGURE_CLI " \'--prefix=/opt/hpc/install/pmix\' \'-with-hwloc=/opt/hpc/local/hwloc\' \'--with-libevent=/opt/hpc/local/libevent\'"
 
 /* Date when PMIx was built */
-#define PMIX_CONFIGURE_DATE "Sun Nov 21 19:46:07 UTC 2021"
+#define PMIX_CONFIGURE_DATE "Tue Oct 18 13:49:30 UTC 2022"
 
 /* Hostname where PMIx was built */
-#define PMIX_CONFIGURE_HOST "root-node01"
+#define PMIX_CONFIGURE_HOST "n01"
 
 /* User who built PMIx */
-#define PMIX_CONFIGURE_USER "root"
+#define PMIX_CONFIGURE_USER "mpiuser"
 
 /* Whether C compiler supports atomic convenience variables in stdatomic.h */
-#define PMIX_C_HAVE_ATOMIC_CONV_VAR 0
+#define PMIX_C_HAVE_ATOMIC_CONV_VAR 1
 
 /* Whether C compiler supports __builtin_clz */
 #define PMIX_C_HAVE_BUILTIN_CLZ 0
@@ -614,16 +487,16 @@
 #define PMIX_C_HAVE_BUILTIN_PREFETCH 0
 
 /* Whether C compiler supports __Atomic keyword */
-#define PMIX_C_HAVE__ATOMIC 0
+#define PMIX_C_HAVE__ATOMIC 1
 
 /* Whether C compiler supports __Generic keyword */
-#define PMIX_C_HAVE__GENERIC 0
+#define PMIX_C_HAVE__GENERIC 1
 
 /* Whether C compiler supports _Static_assert keyword */
 #define PMIX_C_HAVE__STATIC_ASSERT 1
 
 /* Whether C compiler supports __Thread_local */
-#define PMIX_C_HAVE__THREAD_LOCAL 0
+#define PMIX_C_HAVE__THREAD_LOCAL 1
 
 /* Whether C compiler supports __thread */
 #define PMIX_C_HAVE___THREAD 1
@@ -634,8 +507,8 @@
 /* Whether we want to enable dlopen support */
 #define PMIX_ENABLE_DLOPEN_SUPPORT 1
 
-/* Whether or not we will build manpages */
-#define PMIX_ENABLE_MAN_PAGES 1
+/* Enable IPv6 support, but only if the underlying system supports it */
+#define PMIX_ENABLE_IPV6 0
 
 /* Whether we should enable thread support within the PMIX code base */
 #define PMIX_ENABLE_MULTI_THREADS 1
@@ -645,12 +518,6 @@
 
 /* Whether we want developer-level timing support or not */
 #define PMIX_ENABLE_TIMING 0
-
-/* Location of event2/thread.h */
-#define PMIX_EVENT2_THREAD_HEADER <event2/thread.h>
-
-/* Location of event.h */
-#define PMIX_EVENT_HEADER <event.h>
 
 /* If built from a git repo */
 #define PMIX_GIT_REPO_BUILD "1"
@@ -739,9 +606,6 @@
 /* Whether your compiler has __attribute__ weak alias or not */
 #define PMIX_HAVE_ATTRIBUTE_WEAK_ALIAS 
 
-/* whether qsort is broken or not */
-#define PMIX_HAVE_BROKEN_QSORT 0
-
 /* whether ceil is found and available */
 #define PMIX_HAVE_CEIL 1
 
@@ -760,10 +624,7 @@
 /* whether gethostbyname is found and available */
 #define PMIX_HAVE_GETHOSTBYNAME 1
 
-/* Whether or not we have hwloc support */
-#define PMIX_HAVE_HWLOC 1
-
-/* Whether or not we have hwloc_topology_dup support */
+/* Whether or not hwloc_topology_dup is available */
 #define PMIX_HAVE_HWLOC_TOPOLOGY_DUP 1
 
 /* Whether we are building against libev */
@@ -802,14 +663,11 @@
 /* Whether C compiler supports symbol visibility or not */
 #define PMIX_HAVE_VISIBILITY 1
 
-/* Location of hwloc.h */
-#define PMIX_HWLOC_HEADER <hwloc.h>
-
 /* ident string for PMIX */
 #define PMIX_IDENT_STRING ""
 
 /* The library major version is always available, contrary to VERSION */
-#define PMIX_MAJOR_VERSION 4
+#define PMIX_MAJOR_VERSION 5
 
 /* MCA cmd line identifier */
 #define PMIX_MCA_CMD_LINE_ID "pmca"
@@ -817,8 +675,11 @@
 /* MCA prefix string for envars */
 #define PMIX_MCA_PREFIX "PMIX_MCA_"
 
+/* Whether or not we are using memory sanitizers */
+#define PMIX_MEMORY_SANITIZERS 0
+
 /* The library minor version is always available, contrary to VERSION */
-#define PMIX_MINOR_VERSION 1
+#define PMIX_MINOR_VERSION 0
 
 /* Whether the C compiler supports "bool" without any other help (such as
    <stdbool.h>) */
@@ -827,17 +688,17 @@
 /* Whether libraries can be configured with destructor functions */
 #define PMIX_NO_LIB_DESTRUCTOR 0
 
-/* check if pci data is available in ofi */
-#define PMIX_OFI_PCI_DATA_AVAILABLE 0
-
 /* package/branding string for PMIx */
-#define PMIX_PACKAGE_STRING "PMIx root@root-node01 Distribution"
+#define PMIX_PACKAGE_STRING "PMIx mpiuser@n01 Distribution"
 
 /* Whether we have lt_dladvise or not */
 #define PMIX_PDL_PLIBLTDL_HAVE_LT_DLADVISE 0
 
-/* Whether or not we found the optional write_nonrecursive_np flag */
-#define PMIX_PTHREAD_RWLOCK_PREFER_WRITER_NONRECURSIVE_NP 0
+/* Whether or not we are using picky compiler settings */
+#define PMIX_PICKY_COMPILERS 1
+
+/* Where to report bugs */
+#define PMIX_PROXY_BUGREPORT_STRING "https://github.com/openpmix/openpmix"
 
 /* type to use for ptrdiff_t */
 #define PMIX_PTRDIFF_TYPE ptrdiff_t
@@ -846,19 +707,25 @@
 #define PMIX_RELEASE_VERSION 0
 
 /* The OpenPMIx Git Revision */
-#define PMIX_REPO_REV "v1.1.3-2970-gf13ba91"
+#define PMIX_REPO_REV "v1.1.3-3072-g39412e3a"
 
 /* Default value for mca_base_component_show_load_errors MCA variable */
 #define PMIX_SHOW_LOAD_ERRORS_DEFAULT 0
 
+/* The PMIx Standard Provisional ABI compliance level(s) */
+#define PMIX_STD_ABI_PROVISIONAL_VERSION "0.0"
+
+/* The PMIx Standard Stable ABI compliance level(s) */
+#define PMIX_STD_ABI_STABLE_VERSION "0.0"
+
 /* The PMIx Standard compliance level */
-#define PMIX_STD_VERSION "4.0"
+#define PMIX_STD_VERSION "4.1"
 
 /* Whether to use <stdbool.h> or not */
 #define PMIX_USE_STDBOOL_H 1
 
 /* The library version is always available, contrary to VERSION */
-#define PMIX_VERSION "4.1.0a1"
+#define PMIX_VERSION "5.0.0a1"
 
 /* Enable per-user config files */
 #define PMIX_WANT_HOME_CONFIG_FILES 1
@@ -866,29 +733,14 @@
 /* if want pretty-print stack trace feature */
 #define PMIX_WANT_PRETTY_PRINT_STACKTRACE 1
 
-/* The size of `char', as computed by sizeof. */
-#define SIZEOF_CHAR 1
-
-/* The size of `double', as computed by sizeof. */
-#define SIZEOF_DOUBLE 8
-
-/* The size of `float', as computed by sizeof. */
-#define SIZEOF_FLOAT 4
-
 /* The size of `int', as computed by sizeof. */
 #define SIZEOF_INT 4
 
 /* The size of `long', as computed by sizeof. */
 #define SIZEOF_LONG 8
 
-/* The size of `long long', as computed by sizeof. */
-#define SIZEOF_LONG_LONG 8
-
 /* The size of `pid_t', as computed by sizeof. */
 #define SIZEOF_PID_T 4
-
-/* The size of `ptrdiff_t', as computed by sizeof. */
-#define SIZEOF_PTRDIFF_T 8
 
 /* The size of `short', as computed by sizeof. */
 #define SIZEOF_SHORT 2
@@ -896,14 +748,8 @@
 /* The size of `size_t', as computed by sizeof. */
 #define SIZEOF_SIZE_T 8
 
-/* The size of `ssize_t', as computed by sizeof. */
-/* #undef SIZEOF_SSIZE_T */
-
 /* The size of `void *', as computed by sizeof. */
 #define SIZEOF_VOID_P 8
-
-/* The size of `wchar_t', as computed by sizeof. */
-#define SIZEOF_WCHAR_T 4
 
 /* The size of `_Bool', as computed by sizeof. */
 #define SIZEOF__BOOL 1

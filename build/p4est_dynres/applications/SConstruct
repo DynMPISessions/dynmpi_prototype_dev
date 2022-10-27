@@ -1,4 +1,4 @@
-#! /usr/bin/python2
+#! /usr/bin/python3
 
 import os
 import sys
@@ -9,7 +9,8 @@ import sys
 vars = Variables()
 
 env = Environment(variables=vars, ENV = { 'PATH' : os.environ['PATH'],
-                                          'HOME' : os.environ['HOME']})
+                                          'HOME' : os.environ['HOME']
+                                          })
 
 # SWE specific variables
 vars.AddVariables(
@@ -22,7 +23,7 @@ vars.AddVariables(
                     'benchMpidynresFixed', 'benchOmpidynresFixed', 'benchMpidynresSplit', 
                     'benchDecMpidynresFixed',
                     'benchAdapt', 'tests',
-                    'benchOmpidynresSynthetic')
+                    'benchOmpidynresSynthetic', 'benchOmpidynresSynthetic_v1', 'benchOmpidynresSynthetic_v1_nb')
               ),
 
   EnumVariable( 'compileMode', 'whether to compile with debug options', 'release',
@@ -80,19 +81,33 @@ env.Append(CPPPATH=[project_root + '/../p4est/src/'])
 env.Append(CPPPATH=[project_root + '/../p4est/local/include/'])
 env.Append(CPPPATH=[project_root + '/../libmpidynres/build/include/'])
 env.Append(CPPPATH=[project_root + '/../libmpidynres/src/'])
-env.Append(CPPPATH=['/opt/hpc/external/ompi/include'])
+env.Append(CPPPATH=[project_root + '/../../../install/ompi/include'])
+env.Append(CPPPATH=[project_root + '/../../ompi/opal/include'])
+
+try:
+	CPATH = list(filter(None, os.environ['C_PATH'].split(':')))
+	print(CPATH)
+	for path in CPATH:
+    		env.Append(CPPPATH=[path])
+except: 
+	print('CPATH not set')
 
 
+#env.Append(CPPPATH=os.environ.get('C_INLCUDE_PATH'))
 
 env.Append(LIBPATH=['.'])
 env.Append(LIBPATH=['include'])
 env.Append(LIBPATH=['/opt/hpc/build/lib/lib'])
-env.Append(LIBPATH=['/opt/hpc/external/ompi/lib'])
 env.Append(LIBPATH=[project_root + '/../p4est/local/lib/'])
 env.Append(LIBPATH=[project_root + '/../libmpidynres/build/lib/'])
 
+LD_LIBRARY_PATH = list(filter(None, os.environ.get('LD_LIBRARY_PATH').split(':')))
+print(LD_LIBRARY_PATH)
+for path in LD_LIBRARY_PATH:
+    env.Append(LIBPATH=[path])
+
 # link with p4est, libsc, and libmpidynres
-env.Append(LINKFLAGS=['-lp4est', '-lsc', '-lz', '-lmpidynres', '-lmpi']) #,
+env.Append(LINKFLAGS=['-lp4est', '-lsc', '-lz', '-lmpi']) #,'-lmpidynres'
 
 
 if 'netCDF' in env:
@@ -145,6 +160,10 @@ elif env['example'] == 'benchOmpidynresFixed':
   sourceFiles = ['benchmarks/p4est_benchmark_ompidynres_fixed.cpp']
 elif env['example'] == 'benchOmpidynresSynthetic':
   sourceFiles = ['benchmarks/benchmark_ompidynres_synthetic.cpp']
+elif env['example'] == 'benchOmpidynresSynthetic_v1':
+  sourceFiles = ['benchmarks/benchmark_ompidynres_synthetic_v1.cpp']
+elif env['example'] == 'benchOmpidynresSynthetic_v1_nb':
+  sourceFiles = ['benchmarks/benchmark_ompidynres_synthetic_v1_nb.cpp']
 elif env['example'] == 'benchMpidynresSplit':
   sourceFiles = ['benchmarks/p4est_benchmark_mpidynres_split.cpp']
 elif env['example'] == 'benchDecMpidynresFixed':

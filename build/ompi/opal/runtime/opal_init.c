@@ -54,6 +54,7 @@
 #include "opal/mca/pmix/base/base.h"
 #include "opal/mca/reachable/base/base.h"
 #include "opal/mca/shmem/base/base.h"
+#include "opal/mca/smsc/base/base.h"
 #include "opal/mca/threads/threads.h"
 #include "opal/mca/threads/tsd.h"
 #include "opal/mca/timer/base/base.h"
@@ -78,12 +79,10 @@
 #include "opal/util/stacktrace.h"
 #include "opal/util/sys_limits.h"
 #include "opal/util/timings.h"
-
-#if OPAL_CC_USE_PRAGMA_IDENT
-#    pragma ident OPAL_IDENT_STRING
-#elif OPAL_CC_USE_IDENT
-#    ident OPAL_IDENT_STRING
+#if OPAL_ROCM_SUPPORT
+#include "opal/rocm/common_rocm_prototypes.h"
 #endif
+
 const char opal_version_string[] = OPAL_IDENT_STRING;
 
 int opal_initialized = 0;
@@ -523,7 +522,7 @@ int opal_init_util(int *pargc, char ***pargv)
 
     OPAL_TIMING_ENV_NEXT(otmng, "opal_show_help_init");
 
-    /* register handler for errnum -> string converstion */
+    /* register handler for errnum -> string conversion */
     if (OPAL_SUCCESS
         != (ret = opal_error_register("OPAL", OPAL_ERR_BASE, OPAL_ERR_MAX, opal_err2str))) {
         return opal_init_error("opal_error_register", ret);
@@ -558,6 +557,11 @@ int opal_init_util(int *pargc, char ***pargv)
         return opal_init_error("opal_register_params", ret);
     }
 
+#if OPAL_ROCM_SUPPORT
+    /* register params for opal/rocm. This is temporarily done here. */
+    mca_common_rocm_register_mca_variables();
+#endif
+    
     if (OPAL_SUCCESS != (ret = opal_net_init())) {
         return opal_init_error("opal_net_init", ret);
     }
@@ -622,11 +626,12 @@ int opal_init_util(int *pargc, char ***pargv)
  * versions of memcpy correctly configured.
  */
 static mca_base_framework_t *opal_init_frameworks[] = {
-    &opal_threads_base_framework,   &opal_hwloc_base_framework,
-    &opal_memcpy_base_framework,    &opal_memchecker_base_framework,
+    &opal_threads_base_framework, &opal_hwloc_base_framework,
+    &opal_memcpy_base_framework, &opal_memchecker_base_framework,
     &opal_backtrace_base_framework, &opal_timer_base_framework,
-    &opal_shmem_base_framework,     &opal_reachable_base_framework,
-    &opal_pmix_base_framework,      NULL,
+    &opal_shmem_base_framework, &opal_reachable_base_framework,
+    &opal_pmix_base_framework,
+    NULL,
 };
 
 int opal_init(int *pargc, char ***pargv)
@@ -686,7 +691,7 @@ int opal_init(int *pargc, char ***pargv)
         return opal_init_error("opal_shmem_base_select", ret);
     }
 
-    /* Intitialize reachable framework */
+    /* Initialize reachable framework */
     if (OPAL_SUCCESS != (ret = opal_reachable_base_select())) {
         return opal_init_error("opal_reachable_base_select", ret);
     }

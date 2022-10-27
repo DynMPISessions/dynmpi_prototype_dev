@@ -397,6 +397,7 @@ mca_btl_tcp_proc_t *mca_btl_tcp_proc_create(opal_proc_t *proc)
     /* lookup tcp parameters exported by this proc */
     OPAL_MODEX_RECV(rc, &mca_btl_tcp_component.super.btl_version, &proc->proc_name,
                     (uint8_t **) &remote_addrs, &size);
+
     if (OPAL_SUCCESS != rc) {
         if (OPAL_ERR_NOT_FOUND != rc) {
             BTL_ERROR(("opal_modex_recv: failed with return value=%d", rc));
@@ -643,7 +644,7 @@ void mca_btl_tcp_proc_accept(mca_btl_tcp_proc_t *btl_proc, struct sockaddr *addr
         default:;
         }
 
-        /* Set state to CONNECTING to ensure that subsequent conenctions do not attempt to re-use
+        /* Set state to CONNECTING to ensure that subsequent connections do not attempt to re-use
          * endpoint in the num_links > 1 case*/
         btl_endpoint->endpoint_state = MCA_BTL_TCP_CONNECTING;
         (void) mca_btl_tcp_endpoint_accept(btl_endpoint, addr, sd);

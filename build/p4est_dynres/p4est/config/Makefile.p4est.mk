@@ -10,8 +10,8 @@ p4est_sysconfdir = ${p4est_prefix}/etc
 include ${p4est_sysconfdir}/Makefile.sc.mk
 
 # P4EST_CC and P4EST_CFLAGS may not be necessary for your project
-P4EST_CC = /opt/hpc/external/ompi/bin/mpicc
-P4EST_CFLAGS = -g -O2 -std=c99
+P4EST_CC = mpicc
+P4EST_CFLAGS = -g -O2
 
 # These pull in p4est but none of its dependencies
 P4EST_PKG_CPPFLAGS = -I${p4est_prefix}/include
@@ -21,4 +21,4 @@ P4EST_PKG_LIBS = -lp4est
 # These pull in everything needed by p4est
 P4EST_CPPFLAGS =  $(SC_PKG_CPPFLAGS) $(P4EST_PKG_CPPFLAGS)
 P4EST_LDFLAGS =  $(SC_PKG_LDFLAGS) $(P4EST_PKG_LDFLAGS)
-P4EST_LIBS = $(P4EST_PKG_LIBS) $(SC_PKG_LIBS)   -lm   
+P4EST_LIBS = $(P4EST_PKG_LIBS) $(SC_PKG_LIBS)   -lz -lm   

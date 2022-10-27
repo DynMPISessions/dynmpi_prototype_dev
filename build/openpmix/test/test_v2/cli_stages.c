@@ -19,6 +19,7 @@ cli_info_t *cli_info = NULL;
 int cli_info_cnt = 0;
 bool test_abort = false;
 bool test_complete = false;
+int test_timeout = 0;
 
 int cli_rank(cli_info_t *cli)
 {
@@ -158,12 +159,19 @@ void cli_cleanup(cli_info_t *cli)
     case CLI_FIN:
         /* error - means that process terminated w/o calling finalize */
         if (!test_abort) {
-            TEST_ERROR(
-                ("rank %d with state %d unexpectedly terminated.", cli_rank(cli), cli->state));
+            TEST_VERBOSE(("Rank %d cli->exit_code %d", cli_rank(cli), cli->exit_code));
+            if (PMIX_ERR_TIMEOUT == cli->exit_code) {
+                TEST_VERBOSE(("Rank %d timed out", cli_rank(cli)));
+                test_timeout = PMIX_ERR_TIMEOUT;
+            }
+            else {
+                TEST_ERROR(
+                    ("rank %d with state %d unexpectedly terminated.", cli_rank(cli), cli->state));
+                test_abort = true;
+            }
         }
         cli_finalize(cli);
         cli_cleanup(cli);
-        test_abort = true;
         break;
     case CLI_DISCONN:
         cli_disconnect(cli);
@@ -200,19 +208,21 @@ void errhandler(size_t evhdlr_registration_id, pmix_status_t status, const pmix_
                 pmix_info_t info[], size_t ninfo, pmix_info_t results[], size_t nresults,
                 pmix_event_notification_cbfunc_fn_t cbfunc, void *cbdata)
 {
+    PMIX_HIDE_UNUSED_PARAMS(evhdlr_registration_id, info, ninfo, results, nresults);
     TEST_ERROR((" PMIX server event handler for %s:%d with status = %d", source->nspace,
                 source->rank, status));
-    /* notify clients of error */
-    PMIx_Notify_event(status, source, PMIX_RANGE_NAMESPACE, NULL, 0, op_callbk, NULL);
+    cbfunc(PMIX_EVENT_ACTION_COMPLETE, NULL, 0, NULL, NULL, cbdata);
 }
 
 void op_callbk(pmix_status_t status, void *cbdata)
 {
+    PMIX_HIDE_UNUSED_PARAMS(cbdata);
     TEST_VERBOSE(("OP CALLBACK CALLED WITH STATUS %d", status));
 }
 
 void errhandler_reg_callbk(pmix_status_t status, size_t errhandler_ref, void *cbdata)
 {
+    PMIX_HIDE_UNUSED_PARAMS(cbdata);
     TEST_VERBOSE(("ERRHANDLER REGISTRATION CALLBACK CALLED WITH STATUS %d, ref=%lu", status,
                   (unsigned long) errhandler_ref));
 }

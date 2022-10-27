@@ -28,9 +28,7 @@ check_PROGRAMS = \
 	opal_condition \
 	opal_atomic_thread_bench
 
-# JMS possibly to be re-added when #1232 is fixed
-#TESTS = $(check_PROGRAMS)
-TESTS =
+TESTS = $(check_PROGRAMS)
 
 opal_thread_SOURCES = opal_thread.c
 opal_thread_LDADD = \
@@ -50,5 +48,5 @@ opal_atomic_thread_bench_LDADD = \
         $(top_builddir)/opal/lib@OPAL_LIB_NAME@.la
 opal_atomic_thread_bench_DEPENDENCIES = $(opal_atomic_thread_bench_LDADD)
 
-distclean:
+distclean-local:
 	rm -rf *.dSYM .deps .libs *.log *.o *.trs $(check_PROGRAMS) Makefile

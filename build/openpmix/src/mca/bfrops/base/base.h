@@ -16,7 +16,7 @@
  *                         and Technology (RIST).  All rights reserved.
  * Copyright (c) 2019      Mellanox Technologies, Inc.
  *                         All rights reserved.
- * Copyright (c) 2021      Nanook Consulting.  All rights reserved.
+ * Copyright (c) 2021-2022 Nanook Consulting.  All rights reserved.
  * $COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -447,7 +447,7 @@ PMIX_EXPORT pmix_status_t pmix_bfrops_base_pack_alloc_directive(pmix_pointer_arr
 PMIX_EXPORT pmix_status_t pmix_bfrops_base_pack_psetop_directive(pmix_pointer_array_t *regtypes,
                                                                 pmix_buffer_t *buffer,
                                                                 const void *src, int32_t num_vals,
-                                                                pmix_data_type_t type);       
+                                                                pmix_data_type_t type);  
 PMIX_EXPORT pmix_status_t pmix_bfrops_base_pack_iof_channel(pmix_pointer_array_t *regtypes,
                                                             pmix_buffer_t *buffer, const void *src,
                                                             int32_t num_vals,
@@ -509,6 +509,18 @@ PMIX_EXPORT pmix_status_t pmix_bfrops_base_pack_ndstats(pmix_pointer_array_t *re
 PMIX_EXPORT pmix_status_t pmix_bfrops_base_pack_dbuf(pmix_pointer_array_t *regtypes,
                                                      pmix_buffer_t *buffer, const void *src,
                                                      int32_t num_vals, pmix_data_type_t type);
+PMIX_EXPORT pmix_status_t pmix_bfrops_base_pack_smed(pmix_pointer_array_t *regtypes,
+                                                     pmix_buffer_t *buffer, const void *src,
+                                                     int32_t num_vals, pmix_data_type_t type);
+PMIX_EXPORT pmix_status_t pmix_bfrops_base_pack_sacc(pmix_pointer_array_t *regtypes,
+                                                     pmix_buffer_t *buffer, const void *src,
+                                                     int32_t num_vals, pmix_data_type_t type);
+PMIX_EXPORT pmix_status_t pmix_bfrops_base_pack_spers(pmix_pointer_array_t *regtypes,
+                                                      pmix_buffer_t *buffer, const void *src,
+                                                      int32_t num_vals, pmix_data_type_t type);
+PMIX_EXPORT pmix_status_t pmix_bfrops_base_pack_satyp(pmix_pointer_array_t *regtypes,
+                                                      pmix_buffer_t *buffer, const void *src,
+                                                      int32_t num_vals, pmix_data_type_t type);
 
 /*
  * "Standard" unpack functions
@@ -708,6 +720,18 @@ PMIX_EXPORT pmix_status_t pmix_bfrops_base_unpack_ndstats(pmix_pointer_array_t *
 PMIX_EXPORT pmix_status_t pmix_bfrops_base_unpack_dbuf(pmix_pointer_array_t *regtypes,
                                                        pmix_buffer_t *buffer, void *dest,
                                                        int32_t *num_vals, pmix_data_type_t type);
+PMIX_EXPORT pmix_status_t pmix_bfrops_base_unpack_smed(pmix_pointer_array_t *regtypes,
+                                                       pmix_buffer_t *buffer, void *dest,
+                                                       int32_t *num_vals, pmix_data_type_t type);
+PMIX_EXPORT pmix_status_t pmix_bfrops_base_unpack_sacc(pmix_pointer_array_t *regtypes,
+                                                       pmix_buffer_t *buffer, void *dest,
+                                                       int32_t *num_vals, pmix_data_type_t type);
+PMIX_EXPORT pmix_status_t pmix_bfrops_base_unpack_spers(pmix_pointer_array_t *regtypes,
+                                                        pmix_buffer_t *buffer, void *dest,
+                                                        int32_t *num_vals, pmix_data_type_t type);
+PMIX_EXPORT pmix_status_t pmix_bfrops_base_unpack_satyp(pmix_pointer_array_t *regtypes,
+                                                        pmix_buffer_t *buffer, void *dest,
+                                                        int32_t *num_vals, pmix_data_type_t type);
 
 /**** DEPRECATED ****/
 PMIX_EXPORT pmix_status_t pmix_bfrops_base_unpack_array(pmix_pointer_array_t *regtypes,
@@ -895,7 +919,7 @@ PMIX_EXPORT pmix_status_t pmix_bfrops_base_print_alloc_directive(char **output, 
                                                                  pmix_data_type_t type);
 PMIX_EXPORT pmix_status_t pmix_bfrops_base_print_psetop_directive(char **output, char *prefix,
                                                                  pmix_psetop_directive_t *src,
-                                                                 pmix_data_type_t type);  
+                                                                 pmix_data_type_t type); 
 PMIX_EXPORT pmix_status_t pmix_bfrops_base_print_iof_channel(char **output, char *prefix,
                                                              pmix_iof_channel_t *src,
                                                              pmix_data_type_t type);
@@ -951,6 +975,18 @@ PMIX_EXPORT pmix_status_t pmix_bfrops_base_print_ndstats(char **output, char *pr
 PMIX_EXPORT pmix_status_t pmix_bfrops_base_print_dbuf(char **output, char *prefix,
                                                       pmix_data_buffer_t *src,
                                                       pmix_data_type_t type);
+PMIX_EXPORT pmix_status_t pmix_bfrops_base_print_smed(char **output, char *prefix,
+                                                      pmix_storage_medium_t *src,
+                                                      pmix_data_type_t type);
+PMIX_EXPORT pmix_status_t pmix_bfrops_base_print_sacc(char **output, char *prefix,
+                                                      pmix_storage_accessibility_t *src,
+                                                      pmix_data_type_t type);
+PMIX_EXPORT pmix_status_t pmix_bfrops_base_print_spers(char **output, char *prefix,
+                                                       pmix_storage_persistence_t *src,
+                                                       pmix_data_type_t type);
+PMIX_EXPORT pmix_status_t pmix_bfrops_base_print_satyp(char **output, char *prefix,
+                                                       pmix_storage_access_type_t *src,
+                                                       pmix_data_type_t type);
 
 /*
  * Common helper functions
@@ -976,6 +1012,10 @@ PMIX_EXPORT pmix_status_t pmix_bfrops_base_value_unload(pmix_value_t *kv, void *
 PMIX_EXPORT pmix_status_t pmix_bfrops_base_value_xfer(pmix_value_t *p, const pmix_value_t *src);
 
 PMIX_EXPORT pmix_value_cmp_t pmix_bfrops_base_value_cmp(pmix_value_t *p, pmix_value_t *p1);
+
+PMIX_EXPORT void pmix_bfrops_base_value_destruct(pmix_value_t *v);
+
+PMIX_EXPORT void pmix_bfrops_base_darray_destruct(pmix_data_array_t *d);
 
 END_C_DECLS
 

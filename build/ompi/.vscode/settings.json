@@ -1,7 +1,7 @@
 {
     "files.associations": {
         "*.in": "cpp",
-        "proc.h": "c"
-    },
-    "git.ignoreLimitWarning": true
+        "type_traits": "c",
+        "request.h": "c"
+    }
 }

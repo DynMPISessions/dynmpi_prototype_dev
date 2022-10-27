@@ -24,7 +24,7 @@
  * Copyright (c) 2017      Mellanox Technologies. All rights reserved.
  * Copyright (c) 2018      Amazon.com, Inc. or its affiliates.  All Rights reserved.
  * Copyright (c) 2021      Nanook Consulting.  All rights reserved.
- * Copyright (c) 2020-2021 Triad National Security, LLC. All rights
+ * Copyright (c) 2020-2022 Triad National Security, LLC. All rights
  *                         reserved.
  * $COPYRIGHT$
  *
@@ -342,6 +342,7 @@ static int ompi_comm_ext_cid_new_block (ompi_communicator_t *newcomm, ompi_commu
     for (size_t i = 0 ; i < proc_count; ++i) {
         OPAL_PMIX_CONVERT_NAME(&procs[i],&name_array[i]);
     }
+
     rc = PMIx_Group_construct(tag, procs, proc_count, &pinfo, 1, &results, &nresults);
     PMIX_INFO_DESTRUCT(&pinfo);
 
@@ -352,7 +353,9 @@ static int ompi_comm_ext_cid_new_block (ompi_communicator_t *newcomm, ompi_commu
 
     PMIX_PROC_FREE(procs, proc_count);
     free (name_array);
+
     rc = PMIx_Group_destruct (tag, NULL, 0);
+
     ompi_comm_extended_cid_block_initialize (new_block, cid_base, 0, 0);
 
     return OMPI_SUCCESS;
@@ -365,6 +368,13 @@ static int ompi_comm_nextcid_ext_nb (ompi_communicator_t *newcomm, ompi_communic
     ompi_comm_extended_cid_block_t *block;
     bool is_new_block = false;
     int rc;
+
+    /*
+     * sanity check and coverity pacifier
+     */
+    if (!(OMPI_COMM_CID_GROUP == mode || OMPI_COMM_CID_GROUP_NEW == mode) && (NULL == comm)) {
+        return OMPI_ERROR;
+    }
 
     if (OMPI_COMM_CID_GROUP == mode || OMPI_COMM_CID_GROUP_NEW == mode) {
         /* new block belongs to the new communicator */
@@ -395,8 +405,8 @@ static int ompi_comm_nextcid_ext_nb (ompi_communicator_t *newcomm, ompi_communic
         (void) ompi_comm_extended_cid_block_new (block, &newcomm->c_contextidb, is_new_block);
     }
 
-    for (unsigned int i = ompi_comm_array.lowest_free ; i < mca_pml.pml_max_contextid ; ++i) {
-        bool flag = opal_pointer_array_test_and_set_item (&ompi_comm_array, i, newcomm);
+    for (unsigned int i = ompi_mpi_communicators.lowest_free ; i < mca_pml.pml_max_contextid ; ++i) {
+        bool flag = opal_pointer_array_test_and_set_item (&ompi_mpi_communicators, i, newcomm);
         if (true == flag) {
             newcomm->c_index = i;
             break;
@@ -418,10 +428,8 @@ int ompi_comm_nextcid_nb (ompi_communicator_t *newcomm, ompi_communicator_t *com
 {
     ompi_comm_cid_context_t *context;
     ompi_comm_request_t *request;
-    if (mca_pml_base_supports_extended_cid() && OMPI_COMM_CID_INTER != mode &&
-        OMPI_COMM_CID_INTRA_BRIDGE != mode && OMPI_COMM_CID_INTRA_PMIX != mode &&
-        OMPI_COMM_CID_INTRA_FT != mode && OMPI_COMM_CID_INTER_FT != mode &&
-         OMPI_COMM_CID_INTRA_PMIX_FT != mode) {
+
+    if (mca_pml_base_supports_extended_cid() && NULL == comm) {
         return ompi_comm_nextcid_ext_nb (newcomm, comm, bridgecomm, arg0, arg1, send_first, mode, req);
     }
 
@@ -450,7 +458,7 @@ int ompi_comm_nextcid_nb (ompi_communicator_t *newcomm, ompi_communicator_t *com
         return OMPI_ERR_OUT_OF_RESOURCE;
     }
 
-    context->start = ompi_comm_array.lowest_free;
+    context->start = ompi_mpi_communicators.lowest_free;
 
     request = ompi_comm_request_get ();
     if (NULL == request) {
@@ -476,6 +484,7 @@ int ompi_comm_nextcid (ompi_communicator_t *newcomm, ompi_communicator_t *comm,
 {
     ompi_request_t *req;
     int rc;
+
     rc = ompi_comm_nextcid_nb (newcomm, comm, bridgecomm, arg0, arg1, send_first, mode, &req);
     if (OMPI_SUCCESS != rc) {
         return rc;
@@ -517,7 +526,7 @@ static int ompi_comm_allreduce_getnextcid (ompi_comm_request_t *request)
         flag = false;
         context->nextlocal_cid = mca_pml.pml_max_contextid;
         for (unsigned int i = context->start ; i < mca_pml.pml_max_contextid ; ++i) {
-            flag = opal_pointer_array_test_and_set_item (&ompi_comm_array, i,
+            flag = opal_pointer_array_test_and_set_item (&ompi_mpi_communicators, i,
                                                          context->comm);
             if (true == flag) {
                 context->nextlocal_cid = i;
@@ -558,7 +567,7 @@ static int ompi_comm_allreduce_getnextcid (ompi_comm_request_t *request)
     return ompi_comm_request_schedule_append (request, ompi_comm_checkcid, &subreq, 1);
 err_exit:
     if (participate && flag) {
-        opal_pointer_array_test_and_set_item(&ompi_comm_array, context->nextlocal_cid, NULL);
+        opal_pointer_array_test_and_set_item(&ompi_mpi_communicators, context->nextlocal_cid, NULL);
     }
     ompi_comm_cid_lowest_id = INT64_MAX;
     OPAL_THREAD_UNLOCK(&ompi_cid_lock);
@@ -575,7 +584,7 @@ static int ompi_comm_checkcid (ompi_comm_request_t *request)
 
     if (OMPI_SUCCESS != request->super.req_status.MPI_ERROR) {
         if (participate) {
-            opal_pointer_array_set_item(&ompi_comm_array, context->nextlocal_cid, NULL);
+            opal_pointer_array_set_item(&ompi_mpi_communicators, context->nextlocal_cid, NULL);
         }
         return request->super.req_status.MPI_ERROR;
     }
@@ -589,9 +598,9 @@ static int ompi_comm_checkcid (ompi_comm_request_t *request)
     } else {
         context->flag = (context->nextcid == context->nextlocal_cid);
         if ( participate && !context->flag) {
-            opal_pointer_array_set_item(&ompi_comm_array, context->nextlocal_cid, NULL);
+            opal_pointer_array_set_item(&ompi_mpi_communicators, context->nextlocal_cid, NULL);
 
-            context->flag = opal_pointer_array_test_and_set_item (&ompi_comm_array,
+            context->flag = opal_pointer_array_test_and_set_item (&ompi_mpi_communicators,
                                                                   context->nextcid, context->comm);
         }
     }
@@ -609,7 +618,7 @@ static int ompi_comm_checkcid (ompi_comm_request_t *request)
         ompi_comm_request_schedule_append (request, ompi_comm_nextcid_check_flag, &subreq, 1);
     } else {
         if (participate && context->flag ) {
-            opal_pointer_array_test_and_set_item(&ompi_comm_array, context->nextlocal_cid, NULL);
+            opal_pointer_array_test_and_set_item(&ompi_mpi_communicators, context->nextlocal_cid, NULL);
         }
         ompi_comm_cid_lowest_id = INT64_MAX;
     }
@@ -625,7 +634,7 @@ static int ompi_comm_nextcid_check_flag (ompi_comm_request_t *request)
 
     if (OMPI_SUCCESS != request->super.req_status.MPI_ERROR) {
         if (participate) {
-            opal_pointer_array_set_item(&ompi_comm_array, context->nextcid, NULL);
+            opal_pointer_array_set_item(&ompi_mpi_communicators, context->nextcid, NULL);
         }
         return request->super.req_status.MPI_ERROR;
     }
@@ -643,7 +652,7 @@ static int ompi_comm_nextcid_check_flag (ompi_comm_request_t *request)
             context->nextlocal_cid = mca_pml.pml_max_contextid;
             for (unsigned int i = context->start ; i < mca_pml.pml_max_contextid ; ++i) {
                 bool flag;
-                flag = opal_pointer_array_test_and_set_item (&ompi_comm_array, i,
+                flag = opal_pointer_array_test_and_set_item (&ompi_mpi_communicators, i,
                                                                 context->comm);
                 if (true == flag) {
                     context->nextlocal_cid = i;
@@ -659,14 +668,12 @@ static int ompi_comm_nextcid_check_flag (ompi_comm_request_t *request)
         ompi_comm_cid_epoch -= 1; /* protected by the cid_lock */
 #endif /* OPAL_ENABLE_FT_MPI */
         context->newcomm->c_index = context->nextcid;
-        if (OMPI_COMM_IS_INTRA(context->newcomm)) {
-            context->newcomm->c_index_vec[context->newcomm->c_my_rank] = context->newcomm->c_index;
-        }
+
         /* to simplify coding always set the global CID even if it isn't used by the
          * active PML */
         context->newcomm->c_contextid.cid_base = 0;
         context->newcomm->c_contextid.cid_sub.u64 = context->nextcid;
-        opal_pointer_array_set_item (&ompi_comm_array, context->nextcid, context->newcomm);
+        opal_pointer_array_set_item (&ompi_mpi_communicators, context->nextcid, context->newcomm);
 
         /* unlock the cid generator */
         ompi_comm_cid_lowest_id = INT64_MAX;
@@ -678,7 +685,7 @@ static int ompi_comm_nextcid_check_flag (ompi_comm_request_t *request)
 
     if (participate && (0 != context->flag)) {
         /* we could use this cid, but other don't agree */
-        opal_pointer_array_set_item (&ompi_comm_array, context->nextcid, NULL);
+        opal_pointer_array_set_item (&ompi_mpi_communicators, context->nextcid, NULL);
         context->start = context->nextcid + 1; /* that's where we can start the next round */
     }
 
@@ -718,7 +725,7 @@ static int ompi_comm_activate_complete (ompi_communicator_t **newcomm, ompi_comm
     /**
      * Check to see if this process is in the new communicator.
      *
-     * Specifically, this function is invoked by all proceses in the
+     * Specifically, this function is invoked by all processes in the
      * old communicator, regardless of whether they are in the new
      * communicator or not.  This is because it is far simpler to use
      * MPI collective functions on the old communicator to determine
@@ -729,7 +736,7 @@ static int ompi_comm_activate_complete (ompi_communicator_t **newcomm, ompi_comm
      *
      * That being said, only processes in the new communicator need to
      * select a coll module for the new communicator.  More
-     * specifically, proceses who are not in the new communicator
+     * specifically, processes who are not in the new communicator
      * should *not* select a coll module -- for example,
      * ompi_comm_rank(newcomm) returns MPI_UNDEFINED for processes who
      * are not in the new communicator.  This can cause errors in the
@@ -787,6 +794,7 @@ int ompi_comm_activate_nb (ompi_communicator_t **newcomm, ompi_communicator_t *c
     ompi_comm_request_t *request;
     ompi_request_t *subreq;
     int ret = 0;
+
     /* the caller should not pass NULL for comm (it may be the same as *newcomm) */
     assert (NULL != comm);
     context = mca_comm_cid_context_alloc (*newcomm, comm, bridgecomm, arg0, arg1, "activate",
@@ -794,6 +802,7 @@ int ompi_comm_activate_nb (ompi_communicator_t **newcomm, ompi_communicator_t *c
     if (NULL == context) {
         return OMPI_ERR_OUT_OF_RESOURCE;
     }
+
     /* keep track of the pointer so it can be set to MPI_COMM_NULL on failure */
     context->newcommp = newcomm;
 
@@ -802,6 +811,7 @@ int ompi_comm_activate_nb (ompi_communicator_t **newcomm, ompi_communicator_t *c
         OBJ_RELEASE(context);
         return OMPI_ERR_OUT_OF_RESOURCE;
     }
+
     request->context = &context->super;
 
     if (MPI_UNDEFINED != (*newcomm)->c_local_group->grp_my_rank) {
@@ -814,18 +824,20 @@ int ompi_comm_activate_nb (ompi_communicator_t **newcomm, ompi_communicator_t *c
         }
         OMPI_COMM_SET_PML_ADDED(*newcomm);
     }
+
     /* Step 1: the barrier, after which it is allowed to
      * send messages over the new communicator
      */
-    
     ret = context->allreduce_fn (&context->ok, &context->ok, 1, MPI_MIN, context,
                                  &subreq);
     if (OMPI_SUCCESS != ret) {
         ompi_comm_request_return (request);
         return ret;
     }
+
     ompi_comm_request_schedule_append (request, ompi_comm_activate_nb_complete, &subreq, 1);
     ompi_comm_request_start (request);
+
     *req = &request->super;
 
     return ret;
@@ -842,11 +854,13 @@ int ompi_comm_activate (ompi_communicator_t **newcomm, ompi_communicator_t *comm
     if (OMPI_SUCCESS != rc) {
         return rc;
     }
+
     if (&ompi_request_empty != req) {
         ompi_request_wait_completion (req);
         rc = req->req_status.MPI_ERROR;
         ompi_comm_request_return ((ompi_comm_request_t *) req);
     }
+
     return rc;
 }
 
@@ -1279,6 +1293,7 @@ static int ompi_comm_allreduce_group_broadcast (ompi_comm_request_t *request)
             }
         }
     }
+
     return ompi_comm_request_schedule_append (request, NULL, subreq, subreq_count);
 }
 
@@ -1311,8 +1326,10 @@ static int ompi_comm_allreduce_group_recv_complete (ompi_comm_request_t *request
         if (OMPI_SUCCESS != rc) {
             return rc;
         }
+
         return ompi_comm_request_schedule_append (request, ompi_comm_allreduce_group_broadcast, subreq, 2);
     }
+
     /* root */
     return ompi_comm_allreduce_group_broadcast (request);
 }
@@ -1372,6 +1389,7 @@ static int ompi_comm_allreduce_group_nb (int *inbuf, int *outbuf, int count,
             tmp += count;
         }
     }
+
     ompi_comm_request_schedule_append (request, ompi_comm_allreduce_group_recv_complete, subreq, subreq_count);
 
     ompi_comm_request_start (request);

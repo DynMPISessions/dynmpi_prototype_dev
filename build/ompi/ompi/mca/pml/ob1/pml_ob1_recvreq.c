@@ -23,6 +23,7 @@
  * Copyright (c) 2020      Google, LLC. All rights reserved.
  * Copyright (c) 2021      Triad National Security, LLC. All rights
  *                         reserved.
+ * Copyright (c) 2022      Amazon.com, Inc. or its affiliates.  All Rights reserved.
  * $COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -45,7 +46,7 @@
 #include "ompi/mca/bml/base/base.h"
 
 #if OPAL_CUDA_SUPPORT
-#include "opal/mca/common/cuda/common_cuda.h"
+#include "opal/cuda/common_cuda.h"
 #endif /* OPAL_CUDA_SUPPORT */
 
 #if OPAL_CUDA_SUPPORT
@@ -349,7 +350,7 @@ static int mca_pml_ob1_recv_request_ack(
             return OMPI_SUCCESS;
     }
 
-    /* let know to shedule function there is no need to put ACK flag. If not all message went over
+    /* let know to schedule function there is no need to put ACK flag. If not all message went over
      * RDMA then we cancel the GET protocol in order to switch back to send/recv. In this case send
      * back the remote send request, the peer kept a pointer to the frag locally. In the future we
      * might want to cancel the fragment itself, in which case we will have to send back the remote
@@ -583,7 +584,7 @@ void mca_pml_ob1_recv_request_progress_frag( mca_pml_ob1_recv_request_t* recvreq
                                      bytes_received,
                                      bytes_delivered );
     /*
-     *  Unpacking finished, make the user buffer unaccessable again.
+     *  Unpacking finished, make the user buffer unaccessible again.
      */
     MEMCHECKER(
                memchecker_call(&opal_memchecker_base_mem_noaccess,
@@ -928,7 +929,7 @@ void mca_pml_ob1_recv_request_progress_match( mca_pml_ob1_recv_request_t* recvre
 
     MCA_PML_OB1_RECV_REQUEST_MATCHED(recvreq, &hdr->hdr_match);
     /*
-     *  Make user buffer accessable(defined) before unpacking.
+     *  Make user buffer accessible(defined) before unpacking.
      */
     MEMCHECKER(
                memchecker_call(&opal_memchecker_base_mem_defined,
@@ -944,7 +945,7 @@ void mca_pml_ob1_recv_request_progress_match( mca_pml_ob1_recv_request_t* recvre
                                      bytes_received,
                                      bytes_delivered);
     /*
-     *  Unpacking finished, make the user buffer unaccessable again.
+     *  Unpacking finished, make the user buffer unaccessible again.
      */
     MEMCHECKER(
                memchecker_call(&opal_memchecker_base_mem_noaccess,

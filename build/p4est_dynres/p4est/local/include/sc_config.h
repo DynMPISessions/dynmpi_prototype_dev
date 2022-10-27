@@ -10,7 +10,7 @@
 
 /* C compiler */
 #ifndef SC_CC
-#define SC_CC "/opt/hpc/external/ompi/bin/mpicc"
+#define SC_CC "mpicc"
 #endif
 
 /* C compiler flags */
@@ -20,7 +20,7 @@
 
 /* C preprocessor */
 #ifndef SC_CPP
-#define SC_CPP "/opt/hpc/external/ompi/bin/mpicc -E"
+#define SC_CPP "mpicc -E"
 #endif
 
 /* C preprocessor flags */
@@ -30,7 +30,7 @@
 
 /* CXX compiler */
 #ifndef SC_CXX
-#define SC_CXX "/opt/hpc/external/ompi/bin/mpicxx"
+#define SC_CXX "mpicxx"
 #endif
 
 /* CXX compiler flags */
@@ -96,11 +96,13 @@
 #endif
 
 /* Development with V4L2 devices works */
-/* #undef ENABLE_V4L2 */
+#ifndef SC_ENABLE_V4L2
+#define SC_ENABLE_V4L2 1
+#endif
 
 /* F77 compiler */
 #ifndef SC_F77
-#define SC_F77 "/opt/hpc/external/ompi/bin/mpif77"
+#define SC_F77 "mpif77"
 #endif
 
 /* Define to dummy `main' function (if any) required to link to the Fortran
@@ -123,7 +125,7 @@
 
 /* FC compiler */
 #ifndef SC_FC
-#define SC_FC "/opt/hpc/external/ompi/bin/mpif90"
+#define SC_FC "mpif90"
 #endif
 
 /* FC compiler flags */
@@ -314,7 +316,9 @@
 #endif
 
 /* Have we found function adler32_combine. */
-/* #undef HAVE_ZLIB */
+#ifndef SC_HAVE_ZLIB
+#define SC_HAVE_ZLIB 1
+#endif
 
 /* Define to 1 on a bigendian machine */
 /* #undef IS_BIGENDIAN */
@@ -326,7 +330,7 @@
 
 /* Libraries */
 #ifndef SC_LIBS
-#define SC_LIBS "  -lm   "
+#define SC_LIBS "  -lz -lm   "
 #endif
 
 /* minimal log priority */

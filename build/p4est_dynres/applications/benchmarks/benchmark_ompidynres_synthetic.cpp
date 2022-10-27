@@ -74,9 +74,11 @@ int set_mode(const char *c_mode){
     if(c_mode[0] == 'i'){
         mode_num = BENCH_INCRIMENTAL;
         cur_num_delta = num_delta;
+        //printf("cur_num_delta: %d\n", cur_num_delta);
     }else if(c_mode[0] == 's'){
         mode_num = BENCH_SEQUENTIAL;
         cur_num_delta = num_delta;
+        //printf("cur_num_delta: %d\n", cur_num_delta);
     }else if(c_mode[0] == 'm'){
         mode_num = BENCH_MIXED;
         cur_num_delta = proc_limit / num_delta * num_delta;
@@ -132,6 +134,7 @@ void eval_mode(int current_size,int  mode_n){
                     else 
                         cur_num_delta = recvd_delta;
                 }
+                //printf("mode_num %d, cur_type %d, current_size %d, cur_num_delta %d\n", mode_num, cur_type, current_size, cur_num_delta);
                 check_rc = cur_num_delta <= 0 ? false : cur_type == MPI_RC_ADD ? current_size + cur_num_delta <= proc_limit : (current_size - cur_num_delta >= proc_limit_down);
             }else{
                 check_rc = mode_type == MPI_RC_ADD ? current_size + cur_num_delta <= proc_limit : (current_size - cur_num_delta >= proc_limit && current_size - cur_num_delta >= 1);
@@ -207,17 +210,18 @@ int init(MPI_Session *session_handle, MPI_Comm *comm, char *main_pset_name){
     /* create a group from pset */
     rc= MPI_Group_from_session_pset (*session_handle, main_pset_name, &wgroup);
     MPI_Group_size(wgroup, &num_procs);
-    
     /* create a communicator from group */
+    //printf("creating communicator of size: %d\n", num_procs);
     if(MPI_SUCCESS != (rc = MPI_Comm_create_from_group(wgroup, "mpi.forum.example", MPI_INFO_NULL, MPI_ERRORS_RETURN, comm))){
         printf("MPI_comm_create_from_group failed\n");
         MPI_Session_finalize(session_handle);
         return -1;
     }
-  
+
     /* new rank & size */
     MPI_Comm_size(*comm, &num_procs);
     MPI_Comm_rank(*comm, &my_work_rank);
+    //printf("rank %d created communicator of size: %d\n", my_work_rank, num_procs);
 
     MPI_Group_free(&wgroup);
     return rc;
@@ -243,7 +247,7 @@ int resource_change_step(MPI_Session *session_handle, MPI_Comm *lib_comm, char *
     char dummy_pset_name[] = "test1";
     char prefname[MPI_MAX_PSET_NAME_LEN-1]; 
 
-    //printf("_________________________esource change step\n");
+    //printf("_________________________resource change step\n");
 
     MPI_Comm_rank(*lib_comm, &my_rank);
 
@@ -257,9 +261,9 @@ int resource_change_step(MPI_Session *session_handle, MPI_Comm *lib_comm, char *
         if(rc_type == MPI_RC_NULL || status == MPI_RC_FINALIZED){
 
             // if no rc and not requested: request a resource change: add one process
-            MPI_Session_request_res_change(*session_handle, cur_num_delta, delta_pset, cur_type, &info);
+            MPI_Session_request_res_change(*session_handle, cur_num_delta, pset_name, cur_type, &info);
             // As the request returns when notification is send, do an ugly wait until the rc is defined 
-            //sleep(1);
+            
             while(rc_type == MPI_RC_NULL){
                 rc = MPI_Session_get_res_change(*session_handle, &rc_type, delta_pset, &incl_flag, &status, &info);
                 if(rc_type == MPI_RC_NULL){
@@ -319,15 +323,15 @@ int resource_change_step(MPI_Session *session_handle, MPI_Comm *lib_comm, char *
     if(my_rank == 0 && blocking){
         MPI_Info_create(&info);
         MPI_Info_set(info, "mpi_blocking", "1");
-        printf("blocking accept\n");
+        //printf("blocking accept\n");
     }
-    //printf("______________________________________accept\n");
+
     *terminate = 0;
     make_timestamp_root(&cur_synth_timing_frame->accept_start);
     rc = MPI_Session_accept_res_change(session_handle, &info, delta_pset, pset_result, 0, lib_comm, terminate);
     make_timestamp_root(&cur_synth_timing_frame->accept_end);
     /*********************** end of accept resource change *************************/
-    printf("______________________________________FINISHED accept\n");
+
     if(my_rank == 0 && blocking)
         MPI_Info_free(&info);
     /* if successful create new communicator, else need to break (here indicated by MPI_COMM_NULL)*/
@@ -396,6 +400,7 @@ int main(int argc, char* argv[])
     //system("rm -R /dev/shm/*");
     MPI_Session session_handle;
     MPI_Info info = MPI_INFO_NULL;
+    MPI_Info info2 = MPI_INFO_NULL;
     MPI_Comm lib_comm = MPI_COMM_NULL;
  
     int rc_type;
@@ -412,8 +417,11 @@ int main(int argc, char* argv[])
     //printf("Read paramters: mode=%s(%d:%d), num_delta=%d, proc_limit=%d, rc_freq=%d\n", mode, mode_num, mode_type, num_delta, proc_limit, rc_frequency);
 
     strcpy(pset_name, "test1");
-    //printf("MPI_Session_init\n");
+
     /* initialize the session */
+    MPI_Info_create(&info2);
+    MPI_Info_set(info2, "MPI_RC_BOUND_PSET", "mpi://SELF");
+
     make_timestamp_base(&cur_base_timing_frame->init_start);
     int init_ret = MPI_Session_init(MPI_INFO_NULL, MPI_ERRORS_RETURN, &session_handle);
     make_timestamp_base(&cur_base_timing_frame->init_end);
@@ -426,40 +434,45 @@ int main(int argc, char* argv[])
         MPI_Session_pset_create_op(session_handle, MPI_PSETOP_UNION, pset_name, pset_name, pset_result);
     }
     */
-
     /* check if there is a resource change right at the beginning */
-    MPI_Session_get_res_change(session_handle, &rc_type, delta_pset, &incl_flag, &rc_status, &info);
-    //printf("first get end\n");
+    int ret = MPI_Session_get_res_change(session_handle, &rc_type, delta_pset, &incl_flag, &rc_status, &info2);
+    
     /* if we are included in the delta_pset we are a dynamically added process, so we need to confirm the resource change */
     if(rc_type != MPI_RC_NULL && rc_status == MPI_RC_ANNOUNCED && incl_flag){
-        printf("    DELTA PSET RANK %d: I was added dynamically. Need to confirm \n", rank);
+        //printf("    DELTA PSET RANK %d: I was added dynamically. Need to confirm \n", rank);
         spawned = true;
         
         char *pset_name_fresh = (char*) malloc(MPI_MAX_PSET_NAME_LEN);
 
         set_res_change_id(&cur_base_timing_frame->res_change_id, delta_pset);
         make_timestamp_base(&cur_base_timing_frame->confirm_start);
+        //printf("Starting CONFIRM\n");
         rc = MPI_Session_confirm_res_change(&session_handle, &info, delta_pset, &pset_name_fresh);
+
         make_timestamp_base(&cur_base_timing_frame->confirm_end);
-        printf("confirmed\n");
+        
         strcpy(pset_name, pset_name_fresh);
-        //if(MPI_SUCCESS == rc){
-        //    printf("    DELTA PSET RANK %d: Confirmation succeeded. Communication will happen via pset: %s\n", rank, pset_name);
-        //}else{
-        //    printf("    DELTA PSET RANK %d: Confirmation failed. ERROR: %d\n", rank, rc);
-        //}
+        if(MPI_SUCCESS == rc){
+            printf("    DELTA PSET RANK %d: Confirmation succeeded. Communication will happen via pset: %s\n", rank, pset_name);
+        }else{
+            printf("    DELTA PSET RANK %d: Confirmation failed. ERROR: %d\n", rank, rc);
+        }
         init(&session_handle, &lib_comm, pset_name);
+        //printf("Rank %d: start recv counter\n", my_work_rank);
 
         /* get the current iteration from the main rank */
         MPI_Bcast(&counter, 1, MPI_INT, 0, lib_comm);
-        if(mode_num == BENCH_MIXED || (mode_num == BENCH_SEQUENTIAL && mode_type == MPI_RC_SUB)){
-            MPI_Bcast(&cur_num_delta, 1, MPI_INT, 0, lib_comm);
-            printf("Recv: cur_num_delta=%d\n", cur_num_delta);
+        if(mode_num == BENCH_MIXED){
+            MPI_Bcast(&recvd_delta, 1, MPI_INT, 0, lib_comm);
         }
         //printf("    RANK %d: received counter value %d from root in new communicator\n", my_work_rank, counter);
+        if(mode_num == BENCH_SEQUENTIAL){
+            MPI_Bcast(&cur_num_delta, 1, MPI_INT, 0, lib_comm);
+        }
+        
 
     }else{
-        //printf("init start\n");
+        
         /* initialize communication */
         init(&session_handle, &lib_comm, pset_name);
         //printf("init end\n");
@@ -477,8 +490,8 @@ int main(int argc, char* argv[])
     }
 
     eval_mode(num_procs, -1);
-    printf("Rank %d: %d\n", my_work_rank, cur_num_delta);
-    int res = 0;
+    
+    int res;
     make_timestamp_base(&cur_base_timing_frame->sim_start);
     /********************** START OF MAIN LOOP *******************************/
     while(counter++< ITER_MAX){
@@ -495,16 +508,22 @@ int main(int argc, char* argv[])
             rebalance_step();
         }
         /* Work step */
+        //printf("rank %d: first barrier\n", my_work_rank);
         MPI_Barrier(lib_comm);
         make_timestamp_root(&cur_synth_timing_frame->work_start);
         res += work_step();
         make_timestamp_root(&cur_synth_timing_frame->work_end);
+        //printf("rank %d: second barrier\n", my_work_rank);
         MPI_Barrier(lib_comm);
+        MPI_Bcast(&cur_num_delta, 1, MPI_INT, 0, lib_comm);
 
         /* Resource Change step */
         make_timestamp_root(&cur_synth_timing_frame->rc_start);
+
         if(check_rc && iter_since_change++ >= rc_frequency){
-            //printf("iter %d: rank %d: res change\n", counter, my_work_rank);
+            //printf("%d, %d, num_procs - cur_num_delta = %d\n", num_procs, cur_num_delta, num_procs - cur_num_delta);
+            //if(cur_type == MPI_RC_ADD)printf("**************ADD");
+            //else printf("*****************SUB\n");
             int size_before = num_procs;
             int terminate = 0;
             rc = resource_change_step(&session_handle, &lib_comm, pset_name, delta_pset, pset_result, &terminate);
@@ -522,15 +541,15 @@ int main(int argc, char* argv[])
             }else if (rc == MPI_SUCCESS) {
                 /* terminate substracted processes */
                 if(terminate){
-                    //printf("    Old RANK %d: Resource change succeeded. I am not needed anymore. Goodbye!\n", my_work_rank);
+                    printf("    Old RANK %d: Resource change succeeded. I am not needed anymore. Goodbye!\n", my_work_rank);
                     break;
                 }
 
-                printf("    RANK %d: Resource change succeeded. Communication will now happen via pset: %s\n", my_work_rank, pset_name);
+                //printf("    RANK %d: Resource change succeeded. Communication will now happen via pset: %s\n", my_work_rank, pset_name);
                 eval_mode(num_procs, mode_num);
+                
                 MPI_Bcast(&counter, 1, MPI_INT, 0, lib_comm);
-                if(mode_num == BENCH_MIXED || (mode_num == BENCH_SEQUENTIAL && mode_type == MPI_RC_SUB)){
-                    printf("Bcast cur_num_delta=%d\n", cur_num_delta);
+                if(mode_num == BENCH_MIXED || mode_num == BENCH_SEQUENTIAL){
                     MPI_Bcast(&cur_num_delta, 1, MPI_INT, 0, lib_comm);
                 }
             }
@@ -550,12 +569,13 @@ int main(int argc, char* argv[])
         MPI_Info_free(&info);
     }
     if(res > ITER_MAX*100){
-        printf("stay positive!\n");
+        //printf("stay positive!\n");
+        iter_since_change = 0;
     }
     make_timestamp_base(&cur_base_timing_frame->finalize_start);
     MPI_Session_finalize(&session_handle);
     make_timestamp_base(&cur_base_timing_frame->finalize_end);
-
+    //printf("rank%d: session_finalized\n", my_work_rank);
 
     /* print the timings to file */
     char *path_base = getenv("DYNMPI_BASE");
@@ -575,7 +595,7 @@ int main(int argc, char* argv[])
     }
 
     //free(path_base);
-    //printf("rank%d terminating\n", my_work_rank);
+    printf("rank%d terminating\n", my_work_rank);
     _exit(0);
     //return 0;
 }

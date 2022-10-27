@@ -50,7 +50,6 @@ typedef uint8_t prte_daemon_cmd_flag_t;
 #define PRTE_DAEMON_EXIT_CMD              (prte_daemon_cmd_flag_t) 7
 #define PRTE_DAEMON_PROCESS_AND_RELAY_CMD (prte_daemon_cmd_flag_t) 9
 #define PRTE_DAEMON_NULL_CMD              (prte_daemon_cmd_flag_t) 11
-#define PRTE_DAEMON_DVM_SUB_PROCS         (prte_daemon_cmd_flag_t) 12
 
 /* commands for use by tools */
 #define PRTE_DAEMON_REPORT_JOB_INFO_CMD  (prte_daemon_cmd_flag_t) 14
@@ -105,6 +104,11 @@ typedef uint8_t prte_daemon_cmd_flag_t;
 #define PRTE_DYNRES_FINALIZE_RES_CHANGE (prte_daemon_cmd_flag_t) 47
 
 #define PRTE_DYNRES_LOCAL_PROCS_FINALIZED (prte_daemon_cmd_flag_t) 48
+
+/* add procs for the DVM */
+#define PRTE_DAEMON_DVM_SUB_PROCS (prte_daemon_cmd_flag_t) 49
+
+
 
 /*
  * Struct written up the pipe from the child to the parent.

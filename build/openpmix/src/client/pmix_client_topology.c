@@ -8,7 +8,7 @@
  * Copyright (c) 2016      Mellanox Technologies, Inc.
  *                         All rights reserved.
  * Copyright (c) 2016      IBM Corporation.  All rights reserved.
- * Copyright (c) 2021      Nanook Consulting.  All rights reserved.
+ * Copyright (c) 2021-2022 Nanook Consulting  All rights reserved.
  * $COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -20,15 +20,16 @@
 #include "include/pmix.h"
 
 #include "src/client/pmix_client_ops.h"
+#include "src/hwloc/pmix_hwloc.h"
 #include "src/include/pmix_globals.h"
-#include "src/mca/ploc/ploc.h"
-#include "src/util/error.h"
+#include "src/util/pmix_error.h"
 
 static void _loadtp(int sd, short args, void *cbdata)
 {
     pmix_cb_t *cb = (pmix_cb_t *) cbdata;
+    PMIX_HIDE_UNUSED_PARAMS(sd, args);
 
-    cb->pstatus = pmix_ploc.load_topology(cb->topo);
+    cb->pstatus = pmix_hwloc_load_topology(cb->topo);
     PMIX_WAKEUP_THREAD(&cb->lock);
 }
 
@@ -57,6 +58,32 @@ PMIX_EXPORT pmix_status_t PMIx_Load_topology(pmix_topology_t *topo)
     return rc;
 }
 
+void PMIx_Topology_destruct(pmix_topology_t *topo)
+{
+    PMIX_ACQUIRE_THREAD(&pmix_global_lock);
+
+    if (pmix_globals.init_cntr <= 0) {
+        PMIX_RELEASE_THREAD(&pmix_global_lock);
+        return;
+    }
+    PMIX_RELEASE_THREAD(&pmix_global_lock);
+
+    pmix_hwloc_destruct_topology(topo);
+}
+
+void PMIx_Cpuset_destruct(pmix_cpuset_t *cpuset)
+{
+    PMIX_ACQUIRE_THREAD(&pmix_global_lock);
+
+    if (pmix_globals.init_cntr <= 0) {
+        PMIX_RELEASE_THREAD(&pmix_global_lock);
+        return;
+    }
+    PMIX_RELEASE_THREAD(&pmix_global_lock);
+
+    pmix_hwloc_destruct_cpuset(cpuset);
+}
+
 PMIX_EXPORT pmix_status_t PMIx_Parse_cpuset_string(const char *cpuset_string, pmix_cpuset_t *cpuset)
 {
     pmix_status_t rc;
@@ -69,7 +96,7 @@ PMIX_EXPORT pmix_status_t PMIx_Parse_cpuset_string(const char *cpuset_string, pm
     }
     PMIX_RELEASE_THREAD(&pmix_global_lock);
 
-    rc = pmix_ploc.parse_cpuset_string(cpuset_string, cpuset);
+    rc = pmix_hwloc_parse_cpuset_string(cpuset_string, cpuset);
     return rc;
 }
 
@@ -85,7 +112,7 @@ PMIX_EXPORT pmix_status_t PMIx_Get_cpuset(pmix_cpuset_t *cpuset, pmix_bind_envel
     }
     PMIX_RELEASE_THREAD(&pmix_global_lock);
 
-    rc = pmix_ploc.get_cpuset(cpuset, ref);
+    rc = pmix_hwloc_get_cpuset(cpuset, ref);
     return rc;
 }
 
@@ -102,7 +129,7 @@ PMIX_EXPORT pmix_status_t PMIx_Get_relative_locality(const char *locality1, cons
     }
     PMIX_RELEASE_THREAD(&pmix_global_lock);
 
-    rc = pmix_ploc.get_relative_locality(locality1, locality2, locality);
+    rc = pmix_hwloc_get_relative_locality(locality1, locality2, locality);
     return rc;
 }
 
@@ -157,7 +184,7 @@ pmix_status_t PMIx_Compute_distances(pmix_topology_t *topo, pmix_cpuset_t *cpuse
     }
     PMIX_RELEASE_THREAD(&pmix_global_lock);
 
-    pmix_output_verbose(2, pmix_globals.debug_output, "pmix:fabric update_distances");
+    pmix_output_verbose(2, pmix_globals.debug_output, "pmix:compute_distances");
 
     *distances = NULL;
     *ndist = 0;
@@ -183,7 +210,7 @@ pmix_status_t PMIx_Compute_distances(pmix_topology_t *topo, pmix_cpuset_t *cpuse
     }
     PMIX_DESTRUCT(&cb);
 
-    pmix_output_verbose(2, pmix_globals.debug_output, "pmix:fabric update_distances completed");
+    pmix_output_verbose(2, pmix_globals.debug_output, "pmix:compute_distances completed");
 
     return rc;
 }
@@ -191,6 +218,7 @@ pmix_status_t PMIx_Compute_distances(pmix_topology_t *topo, pmix_cpuset_t *cpuse
 static void dcbfunc(int sd, short args, void *cbdata)
 {
     pmix_cb_t *cb = (pmix_cb_t *) cbdata;
+    PMIX_HIDE_UNUSED_PARAMS(sd, args);
 
     if (NULL != cb->cbfunc.distfn) {
         cb->cbfunc.distfn(cb->status, cb->dist, cb->nvals, cb->cbdata, icbrelfn, cb);
@@ -206,8 +234,10 @@ static void direcv(struct pmix_peer_t *peer, pmix_ptl_hdr_t *hdr, pmix_buffer_t 
     pmix_status_t rc;
     int cnt;
 
+    PMIX_HIDE_UNUSED_PARAMS(hdr);
+
     pmix_output_verbose(2, pmix_globals.debug_output,
-                        "pmix:fabric direcv from server with %d bytes", (int) buf->bytes_used);
+                        "pmix:compute_dist recv from server with %d bytes", (int) buf->bytes_used);
 
     /* a zero-byte buffer indicates that this recv is being
      * completed due to a lost connection */
@@ -246,19 +276,21 @@ static void direcv(struct pmix_peer_t *peer, pmix_ptl_hdr_t *hdr, pmix_buffer_t 
     }
 
 complete:
-    pmix_output_verbose(2, pmix_globals.debug_output, "pmix:fabric ifrecv from server releasing");
+    pmix_output_verbose(2, pmix_globals.debug_output, "pmix:compute_dist recv from server releasing");
     /* release the caller */
     cb->cbfunc.distfn(rc, cb->dist, cb->nvals, cb->cbdata, icbrelfn, (void *) cb);
 }
 
-pmix_status_t PMIx_Compute_distances_nb(pmix_topology_t *topo, pmix_cpuset_t *cpuset,
+pmix_status_t PMIx_Compute_distances_nb(pmix_topology_t *tp, pmix_cpuset_t *cp,
                                         pmix_info_t info[], size_t ninfo,
                                         pmix_device_dist_cbfunc_t cbfunc, void *cbdata)
 {
     pmix_cb_t *cb;
     pmix_status_t rc;
     pmix_buffer_t *msg;
-    pmix_cmd_t cmd = PMIX_FABRIC_COMPUTE_DISTANCES_CMD;
+    pmix_cmd_t cmd = PMIX_COMPUTE_DEVICE_DISTANCES_CMD;
+    pmix_topology_t *topo = NULL;
+    pmix_cpuset_t *cpuset = NULL;
 
     PMIX_ACQUIRE_THREAD(&pmix_global_lock);
 
@@ -266,22 +298,58 @@ pmix_status_t PMIx_Compute_distances_nb(pmix_topology_t *topo, pmix_cpuset_t *cp
     cb->cbfunc.distfn = cbfunc;
     cb->cbdata = cbdata;
 
+    /* if the topology is NULL, then use ours */
+    if (NULL == tp) {
+        if (NULL == pmix_globals.topology.topology) {
+            /* if our topology is NULL, try to get it */
+            rc = pmix_hwloc_load_topology(&pmix_globals.topology);
+            if (PMIX_SUCCESS != rc) {
+                /* try to ask our server if they can do it */
+                goto request;
+            }
+        }
+        topo = &pmix_globals.topology;
+    } else {
+        topo = tp;
+    }
+    /* same for cpuset */
+    if (NULL == cp) {
+        /* if our cpuset is NULL, it could be we are unbound or
+         * that we haven't yet gotten our cpuset. Try to get it. */
+        if (NULL == pmix_globals.cpuset.bitmap) {
+            rc = pmix_hwloc_get_cpuset(&pmix_globals.cpuset, PMIX_CPUBIND_PROCESS);
+            if (PMIX_SUCCESS != rc) {
+                /* try to ask our server if they can do it */
+                goto request;
+            }
+        }
+        cpuset = &pmix_globals.cpuset;
+    } else {
+        cpuset = cp;
+    }
+
     /* see if I can support this myself */
-    cb->status = pmix_ploc.compute_distances(topo, cpuset, info, ninfo, &cb->dist, &cb->nvals);
-    if (PMIX_SUCCESS == cb->status || PMIX_ERR_NOT_AVAILABLE == cb->status) {
+    cb->status = pmix_hwloc_compute_distances(topo, cpuset, info, ninfo, &cb->dist, &cb->nvals);
+    if (PMIX_SUCCESS == cb->status) {
         PMIX_RELEASE_THREAD(&pmix_global_lock);
         /* threadshift to return the result */
         PMIX_THREADSHIFT(cb, dcbfunc);
         return PMIX_SUCCESS;
     }
 
-    /* if I am a server, there is nothing more I can do */
+request:
+    /* if I am a server or I am not connected, there is nothing more I can do */
     if (PMIX_PEER_IS_SERVER(pmix_globals.mypeer) || !pmix_globals.connected) {
         PMIX_RELEASE_THREAD(&pmix_global_lock);
         PMIX_RELEASE(cb);
         return PMIX_ERR_UNREACH;
     }
     PMIX_RELEASE_THREAD(&pmix_global_lock);
+
+    /* don't send our topology if it's local */
+    if (topo == &pmix_globals.topology) {
+        topo = NULL;
+    }
 
     /* if we are a tool or client, then relay this request to the server */
     msg = PMIX_NEW(pmix_buffer_t);

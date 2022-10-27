@@ -36,6 +36,7 @@
 #include "opal/util/output.h"
 #include "opal/util/string_copy.h"
 #include "opal/class/opal_pointer_array.h"
+#include "ompi/attribute/attribute.h"
 #include "ompi/datatype/ompi_datatype.h"
 #include "ompi/datatype/ompi_datatype_internal.h"
 #include "ompi/instance/instance.h"
@@ -373,7 +374,7 @@ const ompi_datatype_t* ompi_datatype_basicDatatypes[OMPI_DATATYPE_MPI_MAX_PREDEF
     [OMPI_DATATYPE_MPI_UB] = &ompi_mpi_ub.dt,
 
     [OMPI_DATATYPE_MPI_LONG] = &ompi_mpi_long.dt,
-    [OMPI_DATATYPE_MPI_UNSIGNED_LONG] = &ompi_mpi_long.dt,
+    [OMPI_DATATYPE_MPI_UNSIGNED_LONG] = &ompi_mpi_unsigned_long.dt,
     /* MPI 3.0 types */
     [OMPI_DATATYPE_MPI_COUNT] = &ompi_mpi_count.dt,
 
@@ -676,13 +677,14 @@ int32_t ompi_datatype_init( void )
             datatype->flags &= ~OPAL_DATATYPE_FLAG_NO_GAPS;
         }
     }
-    ompi_datatype_default_convertors_init();
 
     /* get a reference to the attributes subsys */
     ret = ompi_attr_get_ref();
     if (OMPI_SUCCESS != ret) {
         return ret;
     }
+
+    ompi_datatype_default_convertors_init();
 
     ompi_mpi_instance_append_finalize (ompi_datatype_finalize);
     return OMPI_SUCCESS;
@@ -691,8 +693,6 @@ int32_t ompi_datatype_init( void )
 
 static int ompi_datatype_finalize (void)
 {
-    int ret = OMPI_SUCCESS;
-
     /* As the synonyms are just copies of the internal data we should not free them.
      * Anyway they are over the limit of OMPI_DATATYPE_MPI_MAX_PREDEFINED so they will never get freed.
      */
@@ -708,9 +708,7 @@ static int ompi_datatype_finalize (void)
      * opal_finalize_util (). */
 
     /* release a reference to the attributes subsys */
-    ret = ompi_attr_put_ref();
-
-    return ret;
+    return ompi_attr_put_ref();
 }
 
 

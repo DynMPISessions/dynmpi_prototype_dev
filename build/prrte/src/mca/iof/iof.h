@@ -14,7 +14,7 @@
  * Copyright (c) 2012-2015 Los Alamos National Security, LLC. All rights
  *                         reserved.
  * Copyright (c) 2014-2019 Intel, Inc.  All rights reserved.
- * Copyright (c) 2021      Nanook Consulting.  All rights reserved.
+ * Copyright (c) 2021-2022 Nanook Consulting  All rights reserved.
  * $COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -127,32 +127,6 @@
 
 BEGIN_C_DECLS
 
-/* define a macro for requesting a proxy PULL of IO on
- * behalf of a tool that had the HNP spawn a job. First
- * argument is the prte_job_t of the spawned job, second
- * is a pointer to the name of the requesting tool */
-#define PRTE_IOF_PROXY_PULL(a, b)                                            \
-    do {                                                                     \
-        pmix_data_buffer_t *buf;                                             \
-        prte_iof_tag_t tag;                                                  \
-        pmix_proc_t nm;                                                      \
-                                                                             \
-        PMIX_DATA_BUFFER_CREATE(buf);                                        \
-                                                                             \
-        /* setup the tag to pull from HNP */                                 \
-        tag = PRTE_IOF_STDOUTALL | PRTE_IOF_PULL | PRTE_IOF_EXCLUSIVE;       \
-        PMIx_Data_pack(NULL, buf, &tag, 1, PMIX_UINT16);                     \
-        /* pack the name of the source we want to pull */                    \
-        PMIX_LOAD_PROCID(&nm, (a)->nspace, PMIX_RANK_WILDCARD);              \
-        PMIx_Data_pack(NULL, buf, &nm, 1, PMIX_PROC);                        \
-        /* pack the name of the tool */                                      \
-        PMIx_Data_pack(NULL, buf, (b), 1, PMIX_PROC);                        \
-                                                                             \
-        /* send the buffer to the HNP */                                     \
-        prte_rml.send_buffer_nb(PRTE_PROC_MY_HNP, buf, PRTE_RML_TAG_IOF_HNP, \
-                                prte_rml_send_callback, NULL);               \
-    } while (0);
-
 /* Initialize the selected module */
 typedef int (*prte_iof_base_init_fn_t)(void);
 
@@ -182,12 +156,6 @@ typedef int (*prte_iof_base_pull_fn_t)(const pmix_proc_t *peer, prte_iof_tag_t s
  */
 typedef int (*prte_iof_base_close_fn_t)(const pmix_proc_t *peer, prte_iof_tag_t source_tag);
 
-/**
- * Output something via the IOF subsystem
- */
-typedef int (*prte_iof_base_output_fn_t)(const pmix_proc_t *peer, prte_iof_tag_t source_tag,
-                                         const char *msg);
-
 typedef int (*prte_iof_base_push_stdin_fn_t)(const pmix_proc_t *dst_name, uint8_t *data, size_t sz);
 
 /* Flag that a job is complete */
@@ -204,7 +172,6 @@ struct prte_iof_base_module_2_0_0_t {
     prte_iof_base_push_fn_t push;
     prte_iof_base_pull_fn_t pull;
     prte_iof_base_close_fn_t close;
-    prte_iof_base_output_fn_t output;
     prte_iof_base_complete_fn_t complete;
     prte_iof_base_finalize_fn_t finalize;
     prte_iof_base_push_stdin_fn_t push_stdin;

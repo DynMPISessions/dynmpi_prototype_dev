@@ -5,7 +5,7 @@
  *                         reserved.
  * Copyright (c) 2019      Research Organization for Information Science
  *                         and Technology (RIST).  All rights reserved.
- * Copyright (c) 2020      Triad National Security, LLC. All rights
+ * Copyright (c) 2020-2021 Triad National Security, LLC. All rights
  *                         reserved.
  * Copyright (c) 2020      Amazon.com, Inc. or its affiliates.
  *                         All Rights reserved.
@@ -98,6 +98,7 @@ typedef struct {
     opal_pmix_condition_t cond;
     volatile bool active;
     int status;
+    size_t errhandler_ref;
     char *msg;
 } opal_pmix_lock_t;
 
@@ -586,7 +587,7 @@ typedef struct {
             OPAL_MODEX_RECV_STRING((r), _key, (p), (d), (sz));                       \
             free(_key);                                                              \
         }                                                                            \
-    } while (0);
+    } while (0);                                                                     \
 
 #define PMIX_ERROR_LOG(r) \
     opal_output(0, "[%s:%d] PMIx Error: %s", __FILE__, __LINE__, PMIx_Error_string((r)))

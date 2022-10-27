@@ -1,6 +1,5 @@
 {
     "files.associations": {
-        "pmix_server.h": "c",
-        "pmix_server_ops.h": "c"
+        "*.in": "cpp"
     }
 }

@@ -17,7 +17,7 @@
  *                         and Technology (RIST). All rights reserved.
  * Copyright (c) 2020      Cisco Systems, Inc.  All rights reserved
  * Copyright (c) 2020      IBM Corporation.  All rights reserved.
- * Copyright (c) 2021      Nanook Consulting.  All rights reserved.
+ * Copyright (c) 2021-2022 Nanook Consulting.  All rights reserved.
  * $COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -39,17 +39,16 @@
 #endif
 
 #include "src/mca/mca.h"
-#include "src/threads/threads.h"
-#include "src/util/argv.h"
-#include "src/util/prte_environ.h"
+#include "src/threads/pmix_threads.h"
+#include "src/util/pmix_argv.h"
+#include "src/util/pmix_environ.h"
 
 #include "constants.h"
 #include "src/mca/errmgr/errmgr.h"
 #include "src/mca/ess/ess.h"
 #include "src/mca/ras/base/base.h"
-#include "src/mca/rml/rml.h"
-#include "src/mca/rml/rml_types.h"
-#include "src/mca/routed/routed.h"
+#include "src/rml/rml.h"
+#include "src/mca/schizo/base/base.h"
 #include "src/mca/state/state.h"
 #include "src/pmix/pmix-internal.h"
 #include "src/runtime/prte_globals.h"
@@ -57,6 +56,7 @@
 #include "src/util/error_strings.h"
 #include "src/util/name_fns.h"
 #include "src/util/proc_info.h"
+#include "src/util/pmix_show_help.h"
 #include "types.h"
 
 #include "src/mca/plm/base/base.h"
@@ -75,15 +75,15 @@ int prte_plm_base_comm_start(void)
     PRTE_OUTPUT_VERBOSE((5, prte_plm_base_framework.framework_output,
                          "%s plm:base:receive start comm", PRTE_NAME_PRINT(PRTE_PROC_MY_NAME)));
 
-    prte_rml.recv_buffer_nb(PRTE_NAME_WILDCARD, PRTE_RML_TAG_PLM, PRTE_RML_PERSISTENT,
-                            prte_plm_base_recv, NULL);
+    PRTE_RML_RECV(PRTE_NAME_WILDCARD, PRTE_RML_TAG_PLM,
+                  PRTE_RML_PERSISTENT, prte_plm_base_recv, NULL);
     if (PRTE_PROC_IS_MASTER) {
-        prte_rml.recv_buffer_nb(PRTE_NAME_WILDCARD, PRTE_RML_TAG_PRTED_CALLBACK,
-                                PRTE_RML_PERSISTENT, prte_plm_base_daemon_callback, NULL);
-        prte_rml.recv_buffer_nb(PRTE_NAME_WILDCARD, PRTE_RML_TAG_REPORT_REMOTE_LAUNCH,
-                                PRTE_RML_PERSISTENT, prte_plm_base_daemon_failed, NULL);
-        prte_rml.recv_buffer_nb(PRTE_NAME_WILDCARD, PRTE_RML_TAG_TOPOLOGY_REPORT,
-                                PRTE_RML_PERSISTENT, prte_plm_base_daemon_topology, NULL);
+        PRTE_RML_RECV(PRTE_NAME_WILDCARD, PRTE_RML_TAG_PRTED_CALLBACK,
+                      PRTE_RML_PERSISTENT, prte_plm_base_daemon_callback, NULL);
+        PRTE_RML_RECV(PRTE_NAME_WILDCARD, PRTE_RML_TAG_REPORT_REMOTE_LAUNCH,
+                      PRTE_RML_PERSISTENT, prte_plm_base_daemon_failed, NULL);
+        PRTE_RML_RECV(PRTE_NAME_WILDCARD, PRTE_RML_TAG_TOPOLOGY_REPORT,
+                      PRTE_RML_PERSISTENT, prte_plm_base_daemon_topology, NULL);
     }
     recv_issued = true;
 
@@ -99,11 +99,11 @@ int prte_plm_base_comm_stop(void)
     PRTE_OUTPUT_VERBOSE((5, prte_plm_base_framework.framework_output,
                          "%s plm:base:receive stop comm", PRTE_NAME_PRINT(PRTE_PROC_MY_NAME)));
 
-    prte_rml.recv_cancel(PRTE_NAME_WILDCARD, PRTE_RML_TAG_PLM);
+    PRTE_RML_CANCEL(PRTE_NAME_WILDCARD, PRTE_RML_TAG_PLM);
     if (PRTE_PROC_IS_MASTER) {
-        prte_rml.recv_cancel(PRTE_NAME_WILDCARD, PRTE_RML_TAG_PRTED_CALLBACK);
-        prte_rml.recv_cancel(PRTE_NAME_WILDCARD, PRTE_RML_TAG_REPORT_REMOTE_LAUNCH);
-        prte_rml.recv_cancel(PRTE_NAME_WILDCARD, PRTE_RML_TAG_TOPOLOGY_REPORT);
+        PRTE_RML_CANCEL(PRTE_NAME_WILDCARD, PRTE_RML_TAG_PRTED_CALLBACK);
+        PRTE_RML_CANCEL(PRTE_NAME_WILDCARD, PRTE_RML_TAG_REPORT_REMOTE_LAUNCH);
+        PRTE_RML_CANCEL(PRTE_NAME_WILDCARD, PRTE_RML_TAG_TOPOLOGY_REPORT);
     }
     recv_issued = false;
 
@@ -127,10 +127,13 @@ void prte_plm_base_recv(int status, pmix_proc_t *sender, pmix_data_buffer_t *buf
     prte_app_context_t *app, *child_app;
     pmix_proc_t name, *nptr;
     pid_t pid;
-    bool running;
+    bool debugging;
     int i, room;
     char **env;
-    char *prefix_dir;
+    char *prefix_dir, *tmp;
+    pmix_rank_t tgt, *tptr;
+    pmix_value_t pidval = PMIX_VALUE_STATIC_INIT;
+    PRTE_HIDE_UNUSED_PARAMS(status, tag, cbdata);
 
     PRTE_OUTPUT_VERBOSE((5, prte_plm_base_framework.framework_output,
                          "%s plm:base:receive processing msg", PRTE_NAME_PRINT(PRTE_PROC_MY_NAME)));
@@ -154,14 +157,12 @@ void prte_plm_base_recv(int status, pmix_proc_t *sender, pmix_data_buffer_t *buf
             PMIX_ERROR_LOG(rc);
             goto CLEANUP;
         }
-        /* get the new jobid */
-        PRTE_CONSTRUCT(&jb, prte_job_t);
-        rc = prte_plm_base_create_jobid(&jb);
-        if (PRTE_SUCCESS == rc) {
-            PMIX_LOAD_NSPACE(job, jb.nspace);
-        }
-        // The 'jb' object is now stored as reference in the prte_job_data array
-        // by the prte_plm_base_create_jobid function.
+        /* the new nspace is our base nspace with an "@N" extension */
+        pmix_asprintf(&tmp, "%s@%u", prte_plm_globals.base_nspace, prte_plm_globals.next_jobid);
+        PMIX_LOAD_NSPACE(job, tmp);
+        free(tmp);
+        prte_plm_globals.next_jobid++;
+        PMIX_CONSTRUCT(&jb, prte_job_t);
 
         /* setup the response */
         PMIX_DATA_BUFFER_CREATE(answer);
@@ -185,10 +186,10 @@ void prte_plm_base_recv(int status, pmix_proc_t *sender, pmix_data_buffer_t *buf
         }
 
         /* send the response back to the sender */
-        if (0 > (ret = prte_rml.send_buffer_nb(sender, answer, PRTE_RML_TAG_LAUNCH_RESP,
-                                               prte_rml_send_callback, NULL))) {
+        PRTE_RML_SEND(ret, sender->rank, answer, PRTE_RML_TAG_JOBID_RESP);
+        if (PRTE_SUCCESS != ret) {
             PRTE_ERROR_LOG(ret);
-            PRTE_RELEASE(answer);
+            PMIX_DATA_BUFFER_RELEASE(answer);
         }
         break;
 
@@ -208,68 +209,76 @@ void prte_plm_base_recv(int status, pmix_proc_t *sender, pmix_data_buffer_t *buf
         /* record the sender so we know who to respond to */
         PMIX_LOAD_PROCID(&jdata->originator, sender->nspace, sender->rank);
 
+        /* assign a schizo module */
+        if (NULL == jdata->personality) {
+            pmix_argv_append_nosize(&jdata->personality, "prte");
+        }
+        tmp = pmix_argv_join(jdata->personality, ',');
+        jdata->schizo = (struct prte_schizo_base_module_t*)prte_schizo_base_detect_proxy(tmp);
+        if (NULL == jdata->schizo) {
+            pmix_show_help("help-schizo-base.txt", "no-proxy", true, prte_tool_basename, tmp);
+            free(tmp);
+            rc = PRTE_ERR_NOT_FOUND;
+            goto ANSWER_LAUNCH;
+        }
+        free(tmp);
+
         /* get the name of the actual spawn parent - i.e., the proc that actually
          * requested the spawn */
-        nptr = &name;
-        if (!prte_get_attribute(&jdata->attributes, PRTE_JOB_LAUNCH_PROXY, (void **) &nptr,
-                                PMIX_PROC)) {
+        if (!prte_get_attribute(&jdata->attributes, PRTE_JOB_LAUNCH_PROXY, (void **) &nptr, PMIX_PROC)) {
             PRTE_ERROR_LOG(PRTE_ERR_NOT_FOUND);
             rc = PRTE_ERR_NOT_FOUND;
             goto ANSWER_LAUNCH;
         }
 
         /* get the parent's job object */
-        if (NULL != (parent = prte_get_job_data_object(name.nspace))) {
+        if (NULL != (parent = prte_get_job_data_object(nptr->nspace))) {
             /* link the spawned job to the spawner */
-            PRTE_RETAIN(jdata);
-            prte_list_append(&parent->children, &jdata->super);
+            PMIX_RETAIN(jdata);
+            pmix_list_append(&parent->children, &jdata->super);
             /* connect the launcher as well */
             if (PMIX_NSPACE_INVALID(parent->launcher)) {
                 /* we are an original spawn */
-                PMIX_LOAD_NSPACE(jdata->launcher, name.nspace);
+                PMIX_LOAD_NSPACE(jdata->launcher, nptr->nspace);
             } else {
                 PMIX_LOAD_NSPACE(jdata->launcher, parent->launcher);
             }
-            if (PRTE_FLAG_TEST(parent, PRTE_JOB_FLAG_TOOL)) {
-                /* don't use the parent for anything more */
-                parent = NULL;
-            } else {
-                /* if the prefix was set in the parent's job, we need to transfer
-                 * that prefix to the child's app_context so any further launch of
-                 * orteds can find the correct binary. There always has to be at
-                 * least one app_context in both parent and child, so we don't
-                 * need to check that here. However, be sure not to overwrite
-                 * the prefix if the user already provided it!
-                 */
-                app = (prte_app_context_t *) prte_pointer_array_get_item(parent->apps, 0);
-                child_app = (prte_app_context_t *) prte_pointer_array_get_item(jdata->apps, 0);
-                if (NULL != app && NULL != child_app) {
-                    prefix_dir = NULL;
-                    if (prte_get_attribute(&app->attributes, PRTE_APP_PREFIX_DIR,
-                                           (void **) &prefix_dir, PMIX_STRING)
-                        && !prte_get_attribute(&child_app->attributes, PRTE_APP_PREFIX_DIR, NULL,
-                                               PMIX_STRING)) {
-                        prte_set_attribute(&child_app->attributes, PRTE_APP_PREFIX_DIR,
-                                           PRTE_ATTR_GLOBAL, prefix_dir, PMIX_STRING);
-                    }
-                    if (NULL != prefix_dir) {
-                        free(prefix_dir);
-                    }
+            /* if the prefix was set in the parent's job, we need to transfer
+             * that prefix to the child's app_context so any further launch of
+             * orteds can find the correct binary. There always has to be at
+             * least one app_context in both parent and child, so we don't
+             * need to check that here. However, be sure not to overwrite
+             * the prefix if the user already provided it!
+             */
+            app = (prte_app_context_t *) pmix_pointer_array_get_item(parent->apps, 0);
+            child_app = (prte_app_context_t *) pmix_pointer_array_get_item(jdata->apps, 0);
+            if (NULL != app && NULL != child_app) {
+                prefix_dir = NULL;
+                if (prte_get_attribute(&app->attributes, PRTE_APP_PREFIX_DIR,
+                                       (void **) &prefix_dir, PMIX_STRING)
+                    && !prte_get_attribute(&child_app->attributes, PRTE_APP_PREFIX_DIR, NULL,
+                                           PMIX_STRING)) {
+                    prte_set_attribute(&child_app->attributes, PRTE_APP_PREFIX_DIR,
+                                       PRTE_ATTR_GLOBAL, prefix_dir, PMIX_STRING);
+                }
+                if (NULL != prefix_dir) {
+                    free(prefix_dir);
                 }
             }
         }
+        PMIX_PROC_RELEASE(nptr);
 
         /* if the user asked to forward any envars, cycle through the app contexts
          * in the comm_spawn request and add them
          */
         if (NULL != prte_forwarded_envars) {
             for (i = 0; i < jdata->apps->size; i++) {
-                if (NULL
-                    == (app = (prte_app_context_t *) prte_pointer_array_get_item(jdata->apps, i))) {
+                app = (prte_app_context_t *) pmix_pointer_array_get_item(jdata->apps, i);
+                if (NULL == app) {
                     continue;
                 }
-                env = prte_environ_merge(prte_forwarded_envars, app->env);
-                prte_argv_free(app->env);
+                env = pmix_environ_merge(prte_forwarded_envars, app->env);
+                pmix_argv_free(app->env);
                 app->env = env;
             }
         }
@@ -287,9 +296,8 @@ void prte_plm_base_recv(int status, pmix_proc_t *sender, pmix_data_buffer_t *buf
         if (NULL != parent && !PRTE_FLAG_TEST(parent, PRTE_JOB_FLAG_TOOL)) {
             if (NULL == parent->bookmark) {
                 /* find the sender's node in the job map */
-                if (NULL
-                    != (proc = (prte_proc_t *) prte_get_proc_object_by_rank(jdata,
-                                                                           sender->rank))) {
+                proc = (prte_proc_t *) prte_get_proc_object_by_rank(jdata, sender->rank);
+                if (NULL != proc) {
                     /* set the bookmark so the child starts from that place - this means
                      * that the first child process could be co-located with the proc
                      * that called comm_spawn, assuming slots remain on that node. Otherwise,
@@ -300,12 +308,10 @@ void prte_plm_base_recv(int status, pmix_proc_t *sender, pmix_data_buffer_t *buf
             } else {
                 jdata->bookmark = parent->bookmark;
             }
-            /* provide the parent's last object */
-            jdata->bkmark_obj = parent->bkmark_obj;
         }
 
         if (!prte_dvm_ready) {
-            prte_pointer_array_add(prte_cache, jdata);
+            pmix_pointer_array_add(prte_cache, jdata);
             return;
         }
 
@@ -348,31 +354,32 @@ void prte_plm_base_recv(int status, pmix_proc_t *sender, pmix_data_buffer_t *buf
         }
 
         /* send the response back to the sender */
-        if (0 > (ret = prte_rml.send_buffer_nb(sender, answer, PRTE_RML_TAG_LAUNCH_RESP,
-                                               prte_rml_send_callback, NULL))) {
+        PRTE_RML_SEND(ret, sender->rank, answer, PRTE_RML_TAG_LAUNCH_RESP);
+        if (PRTE_SUCCESS != ret) {
             PRTE_ERROR_LOG(ret);
-            PRTE_RELEASE(answer);
+            PMIX_DATA_BUFFER_RELEASE(answer);
         }
         break;
 
     case PRTE_PLM_UPDATE_PROC_STATE:
-        prte_output_verbose(5, prte_plm_base_framework.framework_output,
+            PRTE_OUTPUT_VERBOSE((5, prte_plm_base_framework.framework_output,
                             "%s plm:base:receive update proc state command from %s",
-                            PRTE_NAME_PRINT(PRTE_PROC_MY_NAME), PRTE_NAME_PRINT(sender));
+                            PRTE_NAME_PRINT(PRTE_PROC_MY_NAME), PRTE_NAME_PRINT(sender)));
+        
         count = 1;
         rc = PMIx_Data_unpack(NULL, buffer, &job, &count, PMIX_PROC_NSPACE);
         while (PMIX_SUCCESS == rc) {
-            prte_output_verbose(5, prte_plm_base_framework.framework_output,
+            PRTE_OUTPUT_VERBOSE((5, prte_plm_base_framework.framework_output,
                                 "%s plm:base:receive got update_proc_state for job %s",
-                                PRTE_NAME_PRINT(PRTE_PROC_MY_NAME), PRTE_JOBID_PRINT(job));
+                                PRTE_NAME_PRINT(PRTE_PROC_MY_NAME), PRTE_JOBID_PRINT(job)));
 
             PMIX_LOAD_NSPACE(name.nspace, job);
-            running = false;
             /* get the job object */
             jdata = prte_get_job_data_object(job);
             count = 1;
-            while (PMIX_SUCCESS
-                   == (rc = PMIx_Data_unpack(NULL, buffer, &vpid, &count, PMIX_PROC_RANK))) {
+            bool running = false;
+            rc = PMIx_Data_unpack(NULL, buffer, &vpid, &count, PMIX_PROC_RANK);
+            while (PMIX_SUCCESS == rc) {
                 if (PMIX_RANK_INVALID == vpid) {
                     /* flag indicates that this job is complete - move on */
                     break;
@@ -395,6 +402,7 @@ void prte_plm_base_recv(int status, pmix_proc_t *sender, pmix_data_buffer_t *buf
                 if (PRTE_PROC_STATE_RUNNING == state) {
                     running = true;
                 }
+
                 /* unpack the exit code */
                 count = 1;
                 rc = PMIx_Data_unpack(NULL, buffer, &exit_code, &count, PMIX_INT32);
@@ -403,17 +411,24 @@ void prte_plm_base_recv(int status, pmix_proc_t *sender, pmix_data_buffer_t *buf
                     goto CLEANUP;
                 }
 
-                PRTE_OUTPUT_VERBOSE(
-                    (5, prte_plm_base_framework.framework_output,
-                     "%s plm:base:receive got update_proc_state for vpid %u state %s exit_code %d",
-                     PRTE_NAME_PRINT(PRTE_PROC_MY_NAME), vpid, prte_proc_state_to_str(state),
-                     (int) exit_code));
+                PRTE_OUTPUT_VERBOSE((5, prte_plm_base_framework.framework_output,
+                                     "%s plm:base:receive got update_proc_state for vpid %u pid %d state %s exit_code %d",
+                                     PRTE_NAME_PRINT(PRTE_PROC_MY_NAME), vpid, (int)pid, prte_proc_state_to_str(state),
+                                     (int) exit_code));
 
                 if (NULL != jdata) {
+                    /* get the proc data object */
+
+                    /* FIXME: This is a workaround to avoid abortion if proc not found
+                     * This already accounts for dynamicity of ranks in jdata
+                     * Still sometimes the proc is not found
+                     * --> this is a weird bug and hard to track down.
+                     */
+                    //proc = (prte_proc_t *) pmix_pointer_array_get_item(jdata->procs, vpid);
                     size_t pr;
                     bool found = false;
                     for(pr = 0 ; pr < jdata->procs->size; pr++){
-                        if(NULL == (proc = prte_pointer_array_get_item(jdata->procs, pr))){
+                        if(NULL == (proc = pmix_pointer_array_get_item(jdata->procs, pr))){
                             continue;
                         }
                         if(proc->name.rank == vpid){
@@ -429,18 +444,9 @@ void prte_plm_base_recv(int status, pmix_proc_t *sender, pmix_data_buffer_t *buf
                     if(!found){
                         proc = NULL;
                     }
-                    /* get the proc data object 
-                    if (NULL
-                        == (proc = (prte_proc_t *) prte_pointer_array_get_item(jdata->procs,
-                                                                               vpid))) {
-                        PRTE_ERROR_LOG(PRTE_ERR_NOT_FOUND);
-                        //PRTE_ACTIVATE_JOB_STATE(jdata, PRTE_JOB_STATE_FORCED_EXIT);
-                        goto CLEANUP;
-                    }
-                    */
+                    
                     if (NULL == proc) {
                         PRTE_ERROR_LOG(PRTE_ERR_NOT_FOUND);
-
                         //PRTE_ACTIVATE_JOB_STATE(jdata, PRTE_JOB_STATE_FORCED_EXIT);
                         //goto CLEANUP;
                         continue;
@@ -452,15 +458,88 @@ void prte_plm_base_recv(int status, pmix_proc_t *sender, pmix_data_buffer_t *buf
                     proc->exit_code = exit_code;
                     PRTE_ACTIVATE_PROC_STATE(&name, state);
                 }
+                /* get entry from next rank */
+                rc = PMIx_Data_unpack(NULL, buffer, &vpid, &count, PMIX_PROC_RANK);
             }
-            /* record that we heard back from a daemon during app launch */
-            if (running && NULL != jdata) {
-                jdata->num_daemons_reported++;
-                if (prte_report_launch_progress) {
-                    if (0 == jdata->num_daemons_reported % 100
-                        || jdata->num_daemons_reported == prte_process_info.num_daemons) {
-                        PRTE_ACTIVATE_JOB_STATE(jdata, PRTE_JOB_STATE_REPORT_PROGRESS);
+            /* prepare for next job */
+            count = 1;
+            rc = PMIx_Data_unpack(NULL, buffer, &job, &count, PMIX_PROC_NSPACE);
+        }
+        if (PMIX_ERR_UNPACK_READ_PAST_END_OF_BUFFER != rc) {
+            PMIX_ERROR_LOG(rc);
+            rc = prte_pmix_convert_status(rc);
+        } else {
+            rc = PRTE_SUCCESS;
+        }
+        break;
+
+    case PRTE_PLM_READY_FOR_DEBUG_CMD:
+            PRTE_OUTPUT_VERBOSE((5, prte_plm_base_framework.framework_output,
+                            "%s plm:base:receive ready for debug command from %s",
+                            PRTE_NAME_PRINT(PRTE_PROC_MY_NAME), PRTE_NAME_PRINT(sender)));
+        count = 1;
+        rc = PMIx_Data_unpack(NULL, buffer, &job, &count, PMIX_PROC_NSPACE);
+        while (PMIX_SUCCESS == rc) {
+            PRTE_OUTPUT_VERBOSE((5, prte_plm_base_framework.framework_output,
+                                "%s plm:base:receive got ready for debug for job %s",
+                                PRTE_NAME_PRINT(PRTE_PROC_MY_NAME), PRTE_JOBID_PRINT(job)));
+
+            PMIX_LOAD_NSPACE(name.nspace, job);
+            /* get the job object */
+            jdata = prte_get_job_data_object(job);
+            tptr = &tgt;
+            debugging = false;
+            if (prte_get_attribute(&jdata->attributes, PRTE_JOB_STOP_ON_EXEC, (void**)&tptr, PMIX_PROC_RANK) ||
+                prte_get_attribute(&jdata->attributes, PRTE_JOB_STOP_IN_INIT, (void**)&tptr, PMIX_PROC_RANK) ||
+                prte_get_attribute(&jdata->attributes, PRTE_JOB_STOP_IN_APP, (void**)&tptr, PMIX_PROC_RANK)) {
+                debugging = true;
+            }
+            count = 1;
+            rc = PMIx_Data_unpack(NULL, buffer, &vpid, &count, PMIX_PROC_RANK);
+            while (PMIX_SUCCESS == rc) {
+                if (PMIX_RANK_INVALID == vpid) {
+                    /* flag indicates that this job is complete - move on */
+                    break;
+                }
+                name.rank = vpid;
+                /* unpack the pid */
+                count = 1;
+                rc = PMIx_Data_unpack(NULL, buffer, &pid, &count, PMIX_PID);
+                if (PMIX_SUCCESS != rc) {
+                    PMIX_ERROR_LOG(rc);
+                    goto CLEANUP;
+                }
+
+                PRTE_OUTPUT_VERBOSE((5, prte_plm_base_framework.framework_output,
+                     "%s plm:base:receive got ready for debug for vpid %u",
+                     PRTE_NAME_PRINT(PRTE_PROC_MY_NAME), vpid));
+
+                /* get the proc data object */
+                //proc = (prte_proc_t *) pmix_pointer_array_get_item(jdata->procs, vpid);
+                proc = (prte_proc_t *) prte_get_proc_object_by_rank(jdata, vpid);
+                if (NULL == proc) {
+                    PRTE_ERROR_LOG(PRTE_ERR_NOT_FOUND);
+                    PRTE_ACTIVATE_JOB_STATE(jdata, PRTE_JOB_STATE_FORCED_EXIT);
+                    goto CLEANUP;
+                }
+                /* NEVER update the proc state before activating the state machine - let
+                 * the state cbfunc update it as it may need to compare this
+                 * state against the prior proc state */
+                proc->pid = pid;
+                tptr = &tgt;
+                if (debugging) {
+                    if (PMIX_CHECK_RANK(proc->rank, tgt)) {
+                        jdata->num_ready_for_debug++;
                     }
+                }
+                /* get entry from next rank */
+                rc = PMIx_Data_unpack(NULL, buffer, &vpid, &count, PMIX_PROC_RANK);
+            }
+            if (debugging) {
+                if ((PMIX_RANK_WILDCARD == tgt && jdata->num_ready_for_debug == jdata->num_procs) ||
+                    (PMIX_RANK_LOCAL_PEERS == tgt && jdata->num_ready_for_debug == jdata->num_local_procs) ||
+                    (PMIX_RANK_WILDCARD != tgt && 1 == jdata->num_ready_for_debug)) {
+                    PRTE_ACTIVATE_JOB_STATE(jdata, PRTE_JOB_STATE_READY_FOR_DEBUG);
                 }
             }
             /* prepare for next job */
@@ -476,6 +555,9 @@ void prte_plm_base_recv(int status, pmix_proc_t *sender, pmix_data_buffer_t *buf
         break;
 
     case PRTE_PLM_REGISTERED_CMD:
+            PRTE_OUTPUT_VERBOSE((5, prte_plm_base_framework.framework_output,
+                            "%s plm:base:receive registered command from %s",
+                            PRTE_NAME_PRINT(PRTE_PROC_MY_NAME), PRTE_NAME_PRINT(sender)));
         count = 1;
         rc = PMIx_Data_unpack(NULL, buffer, &job, &count, PMIX_PROC_NSPACE);
         if (PMIX_SUCCESS != rc) {
@@ -483,6 +565,9 @@ void prte_plm_base_recv(int status, pmix_proc_t *sender, pmix_data_buffer_t *buf
             goto CLEANUP;
         }
         PMIX_LOAD_NSPACE(name.nspace, job);
+            PRTE_OUTPUT_VERBOSE((5, prte_plm_base_framework.framework_output,
+                            "%s plm:base:receive got registered for job %s",
+                            PRTE_NAME_PRINT(PRTE_PROC_MY_NAME), PRTE_JOBID_PRINT(job)));
         /* get the job object */
         if (NULL == (jdata = prte_get_job_data_object(job))) {
             PRTE_ERROR_LOG(PRTE_ERR_NOT_FOUND);
@@ -491,9 +576,110 @@ void prte_plm_base_recv(int status, pmix_proc_t *sender, pmix_data_buffer_t *buf
         }
         count = 1;
         while (PRTE_SUCCESS == PMIx_Data_unpack(NULL, buffer, &vpid, &count, PMIX_PROC_RANK)) {
-            name.rank = vpid;
-            PRTE_ACTIVATE_PROC_STATE(&name, PRTE_PROC_STATE_REGISTERED);
+            PRTE_OUTPUT_VERBOSE((5, prte_plm_base_framework.framework_output,
+                                 "%s plm:base:receive got registered for vpid %u",
+                                 PRTE_NAME_PRINT(PRTE_PROC_MY_NAME), vpid));
+            //proc = (prte_proc_t *) pmix_pointer_array_get_item(jdata->procs, vpid);
+            proc = prte_get_proc_object_by_rank(jdata, vpid);
+            if (NULL == proc) {
+                PRTE_ERROR_LOG(PRTE_ERR_NOT_FOUND);
+                PRTE_ACTIVATE_JOB_STATE(jdata, PRTE_JOB_STATE_FORCED_EXIT);
+                goto CLEANUP;
+            }
+            proc->state = PRTE_PROC_STATE_REGISTERED;
+            jdata->num_reported++;
             count = 1;
+        }
+        if (jdata->num_reported == jdata->num_procs) {
+            PRTE_ACTIVATE_JOB_STATE(jdata, PRTE_JOB_STATE_REGISTERED);
+        }
+        break;
+
+    case PRTE_PLM_LOCAL_LAUNCH_COMP_CMD:
+        PRTE_OUTPUT_VERBOSE((5, prte_plm_base_framework.framework_output,
+                            "%s plm:base:receive local launch complete command from %s",
+                            PRTE_NAME_PRINT(PRTE_PROC_MY_NAME), PRTE_NAME_PRINT(sender)));
+        count = 1;
+        rc = PMIx_Data_unpack(NULL, buffer, &job, &count, PMIX_PROC_NSPACE);
+        if (PMIX_SUCCESS != rc) {
+            PMIX_ERROR_LOG(rc);
+            goto CLEANUP;
+        }
+        PMIX_LOAD_NSPACE(name.nspace, job);
+            PRTE_OUTPUT_VERBOSE((5, prte_plm_base_framework.framework_output,
+                            "%s plm:base:receive got local launch complete for job %s",
+                            PRTE_NAME_PRINT(PRTE_PROC_MY_NAME), PRTE_JOBID_PRINT(job)));
+        /* get the job object */
+        if (NULL == (jdata = prte_get_job_data_object(job))) {
+            PRTE_ERROR_LOG(PRTE_ERR_NOT_FOUND);
+            rc = PRTE_ERR_NOT_FOUND;
+            goto CLEANUP;
+        }
+        count = 1;
+        while (PRTE_SUCCESS == PMIx_Data_unpack(NULL, buffer, &vpid, &count, PMIX_PROC_RANK)) {
+            PRTE_OUTPUT_VERBOSE((5, prte_plm_base_framework.framework_output,
+                                 "%s plm:base:receive got local launch complete for vpid %s",
+                                 PRTE_NAME_PRINT(PRTE_PROC_MY_NAME), PRTE_VPID_PRINT(vpid)));
+            //proc = (prte_proc_t *) pmix_pointer_array_get_item(jdata->procs, vpid);
+            proc = (prte_proc_t*) prte_get_proc_object_by_rank(jdata, vpid);
+            if (NULL == proc) {
+                PRTE_ERROR_LOG(PRTE_ERR_NOT_FOUND);
+                PRTE_ACTIVATE_JOB_STATE(jdata, PRTE_JOB_STATE_FORCED_EXIT);
+                goto CLEANUP;
+            }
+            /* unpack the pid */
+            count = 1;
+            rc = PMIx_Data_unpack(NULL, buffer, &pid, &count, PMIX_PID);
+            if (PMIX_SUCCESS != rc) {
+                PMIX_ERROR_LOG(rc);
+                goto CLEANUP;
+            }
+            proc->pid = pid;
+            pidval.type = PMIX_PID;
+            pidval.data.pid = pid;
+            /* store the PID for later retrieval */
+            rc = PMIx_Store_internal(&proc->name, PMIX_PROC_PID, &pidval);
+            if (PMIX_SUCCESS != rc) {
+                PMIX_ERROR_LOG(rc);
+            }
+            /* unpack the state */
+            count = 1;
+            rc = PMIx_Data_unpack(NULL, buffer, &state, &count, PMIX_UINT32);
+            if (PMIX_SUCCESS != rc) {
+                PMIX_ERROR_LOG(rc);
+                goto CLEANUP;
+            }
+            PRTE_OUTPUT_VERBOSE((5, prte_plm_base_framework.framework_output,
+                                 "%s plm:base:receive got local launch complete for vpid %u state %s",
+                                 PRTE_NAME_PRINT(PRTE_PROC_MY_NAME), vpid,
+                                 prte_proc_state_to_str(state)));
+            /* if the child failed to start, unpack its exit code */
+            if (PRTE_PROC_STATE_RUNNING != state) {
+                count = 1;
+                rc = PMIx_Data_unpack(NULL, buffer, &exit_code, &count, PMIX_INT32);
+                if (PMIX_SUCCESS != rc) {
+                    PMIX_ERROR_LOG(rc);
+                    goto CLEANUP;
+                }
+                proc->exit_code = exit_code;
+            }
+            proc->state = state;
+            jdata->num_launched++;
+            count = 1;
+        }
+        /* record that we heard back from a daemon during app launch */
+        jdata->num_daemons_reported++;
+        if (prte_report_launch_progress) {
+            if (0 == jdata->num_daemons_reported % 100
+                || jdata->num_daemons_reported == prte_process_info.num_daemons) {
+                PRTE_ACTIVATE_JOB_STATE(jdata, PRTE_JOB_STATE_REPORT_PROGRESS);
+            }
+        }
+        if (1 == jdata->num_launched) {
+            PRTE_ACTIVATE_JOB_STATE(jdata, PRTE_JOB_STATE_STARTED);
+        }
+        if (jdata->num_launched == jdata->num_procs) {
+            PRTE_ACTIVATE_JOB_STATE(jdata, PRTE_JOB_STATE_RUNNING);
         }
         break;
 
@@ -518,5 +704,6 @@ CLEANUP:
 /* where HNP messages come */
 void prte_plm_base_receive_process_msg(int fd, short event, void *data)
 {
+    PRTE_HIDE_UNUSED_PARAMS(fd, event, data);
     assert(0);
 }

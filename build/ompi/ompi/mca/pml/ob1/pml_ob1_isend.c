@@ -3,7 +3,7 @@
  * Copyright (c) 2004-2005 The Trustees of Indiana University and Indiana
  *                         University Research and Technology
  *                         Corporation.  All rights reserved.
- * Copyright (c) 2004-2018 The University of Tennessee and The University
+ * Copyright (c) 2004-2022 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  * Copyright (c) 2004-2005 High Performance Computing Center Stuttgart,
@@ -12,9 +12,10 @@
  *                         All rights reserved.
  * Copyright (c) 2007-2016 Los Alamos National Security, LLC.  All rights
  *                         reserved.
- * Copyright (c) 2014      Cisco Systems, Inc.  All rights reserved.
+ * Copyright (c) 2014-2021 Cisco Systems, Inc.  All rights reserved
  * Copyright (c) 2015      Research Organization for Information Science
  *                         and Technology (RIST). All rights reserved.
+ * Copyright (c) 2022      IBM Corporation.  All rights reserved.
  * $COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -29,6 +30,9 @@
 #include "pml_ob1_recvreq.h"
 #include "ompi/peruse/peruse-internal.h"
 #include "ompi/runtime/ompi_spc.h"
+#if MPI_VERSION >= 4
+#include "ompi/mca/pml/base/pml_base_sendreq.h"
+#endif
 
 /**
  * Single usage request. As we allow recursive calls (as an
@@ -62,8 +66,8 @@ int mca_pml_ob1_isend_init(const void *buf,
                              PERUSE_SEND);
 
     /* Work around a leak in start by marking this request as complete. The
-     * problem occured because we do not have a way to differentiate an
-     * inital request and an incomplete pml request in start. This line
+     * problem occurred because we do not have a way to differentiate an
+     * initial request and an incomplete pml request in start. This line
      * allows us to detect this state. */
     sendreq->req_send.req_base.req_pml_complete = true;
 
@@ -86,7 +90,7 @@ static inline int mca_pml_ob1_send_inline (const void *buf, size_t count,
     int rc;
 
     bml_btl = mca_bml_base_btl_array_get_next(&endpoint->btl_eager);
-    if( NULL == bml_btl->btl->btl_sendi)
+    if( NULL == bml_btl || NULL == bml_btl->btl->btl_sendi)
         return OMPI_ERR_NOT_AVAILABLE;
 
     ompi_datatype_type_size (datatype, &size);
@@ -170,7 +174,7 @@ int mca_pml_ob1_isend(const void *buf,
         return OMPI_ERR_UNREACH;
     }
 
-    if (!OMPI_COMM_CHECK_ASSERT_ALLOW_OVERTAKE(comm)) {
+    if (!OMPI_COMM_CHECK_ASSERT_ALLOW_OVERTAKE(comm) || 0 > tag) {
         seqn = (uint16_t) OPAL_THREAD_ADD_FETCH32(&ob1_proc->send_sequence, 1);
     }
 
@@ -181,6 +185,12 @@ int mca_pml_ob1_isend(const void *buf,
             /* NTH: it is legal to return ompi_request_empty since the only valid
              * field in a send completion status is whether or not the send was
              * cancelled (which it can't be at this point anyway). */
+#if MPI_VERSION >= 4
+            if (OPAL_UNLIKELY(OMPI_PML_BASE_WARN_DEP_CANCEL_SEND_NEVER != ompi_pml_base_warn_dep_cancel_send_level)) {
+                *request = &ompi_request_empty_send;
+                return OMPI_SUCCESS;
+            }
+#endif
             *request = &ompi_request_empty;
             return OMPI_SUCCESS;
         }
@@ -207,7 +217,6 @@ int mca_pml_ob1_isend(const void *buf,
 
 #if OPAL_ENABLE_FT_MPI
 alloc_ft_req:
-#endif /* OPAL_ENABLE_FT_MPI */
     MCA_PML_OB1_SEND_REQUEST_ALLOC(comm, dst, sendreq);
     if (NULL == sendreq)
         return OMPI_ERR_OUT_OF_RESOURCE;
@@ -225,10 +234,16 @@ alloc_ft_req:
 
     /* No point in starting the request, it won't go through, mark completed
      * in error for collection in future wait */
-    sendreq->req_send.req_base.req_ompi.req_status.MPI_ERROR = MPI_ERR_PROC_FAILED;
+    sendreq->req_send.req_base.req_ompi.req_status.MPI_ERROR = ompi_comm_is_revoked(comm)? MPI_ERR_REVOKED: MPI_ERR_PROC_FAILED;
     MCA_PML_OB1_SEND_REQUEST_MPI_COMPLETE(sendreq, false);
+    OPAL_OUTPUT_VERBOSE((2, ompi_ftmpi_output_handle, "Allocating request in error %p (peer %d, seq %" PRIu64 ") with error code %d",
+                         (void*) sendreq,
+                         dst,
+                         sendreq->req_send.req_base.req_sequence,
+                         sendreq->req_send.req_base.req_ompi.req_status.MPI_ERROR));
     *request = (ompi_request_t *) sendreq;
     return OMPI_SUCCESS;
+#endif /* OPAL_ENABLE_FT_MPI */
 }
 
 int mca_pml_ob1_send(const void *buf,
@@ -269,7 +284,7 @@ int mca_pml_ob1_send(const void *buf,
         return OMPI_SUCCESS;
     }
 
-    if (!OMPI_COMM_CHECK_ASSERT_ALLOW_OVERTAKE(comm)) {
+    if (!OMPI_COMM_CHECK_ASSERT_ALLOW_OVERTAKE(comm) || 0 > tag) {
         seqn = (uint16_t) OPAL_THREAD_ADD_FETCH32(&ob1_proc->send_sequence, 1);
     }
 

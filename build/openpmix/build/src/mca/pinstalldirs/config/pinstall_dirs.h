@@ -37,7 +37,7 @@
 #ifndef PMIX_INST_DIRS_H
 #define PMIX_INST_DIRS_H
 
-#define PMIX_INSTALL_PREFIX "/opt/hpc/external/pmix"
+#define PMIX_INSTALL_PREFIX "/opt/hpc/install/pmix"
 #define PMIX_EXEC_PREFIX "${prefix}"
 
 /* The directory for installing executable programs that users can

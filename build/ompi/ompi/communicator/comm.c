@@ -24,7 +24,7 @@
  * Copyright (c) 2015      Mellanox Technologies. All rights reserved.
  * Copyright (c) 2017      IBM Corporation. All rights reserved.
  * Copyright (c) 2021      Nanook Consulting.  All rights reserved.
- * Copyright (c) 2018      Triad National Security, LLC. All rights
+ * Copyright (c) 2018-2022 Triad National Security, LLC. All rights
  *                         reserved.
  * $COPYRIGHT$
  *
@@ -207,18 +207,6 @@ int ompi_comm_set_nb (ompi_communicator_t **ncomm, ompi_communicator_t *oldcomm,
         }
 
         newcomm->c_flags |= OMPI_COMM_INTER;
-        newcomm->c_index_vec = malloc(remote_size * sizeof(int));
-        if (NULL == newcomm->c_index_vec) {
-            OBJ_RELEASE(newcomm);
-            return OMPI_ERR_OUT_OF_RESOURCE;
-        }
-        for (int i = 0; i < remote_size; i++) {
-            if (OMPI_COMM_IS_GLOBAL_INDEX(newcomm)) {
-                newcomm->c_index_vec[i] = newcomm->c_index;
-            } else {
-                newcomm->c_index_vec[i] = -2;
-            }
-        }
 
         if (dup_comm) {
             old_localcomm = OMPI_COMM_IS_INTRA(oldcomm) ? oldcomm : oldcomm->c_local_comm;
@@ -234,18 +222,6 @@ int ompi_comm_set_nb (ompi_communicator_t **ncomm, ompi_communicator_t *oldcomm,
     } else {
         newcomm->c_remote_group = newcomm->c_local_group;
         OBJ_RETAIN(newcomm->c_remote_group);
-        newcomm->c_index_vec = malloc(local_size * sizeof(int));
-        if (NULL == newcomm->c_index_vec) {
-            OBJ_RELEASE(newcomm);
-            return OMPI_ERR_OUT_OF_RESOURCE;
-        }
-        for (int i = 0; i < local_size; i++) {
-            if (OMPI_COMM_IS_GLOBAL_INDEX(newcomm)) {
-                newcomm->c_index_vec[i] = newcomm->c_index;
-            } else {
-                newcomm->c_index_vec[i] = -2;
-            }
-        }
     }
 
     /* Check how many different jobids are represented in this communicator.
@@ -330,7 +306,6 @@ int ompi_comm_create_w_info (ompi_communicator_t *comm, ompi_group_t *group, opa
         return OMPI_ERR_BAD_PARAM;
     }
 
-
     if ( OMPI_COMM_IS_INTER(comm) ) {
         int tsize;
         remote_group = &ompi_mpi_group_null.group;
@@ -385,7 +360,7 @@ int ompi_comm_create_w_info (ompi_communicator_t *comm, ompi_group_t *group, opa
         rranks = NULL;
         mode   = OMPI_COMM_CID_INTRA;
     }
-    
+
     rc = ompi_comm_set ( &newcomp,                 /* new comm */
                          comm,                     /* old comm */
                          0,                        /* local array size */
@@ -406,10 +381,6 @@ int ompi_comm_create_w_info (ompi_communicator_t *comm, ompi_group_t *group, opa
     rc = ompi_comm_nextcid (newcomp, comm, NULL, NULL, NULL, false, mode);
     if ( OMPI_SUCCESS != rc ) {
         goto exit;
-    }
-
-    if (OMPI_COMM_IS_INTRA(comm)) {
-        newcomp->c_index_vec[newcomp->c_my_rank] = newcomp->c_index;
     }
 
     /* Copy info if there is one. */
@@ -664,10 +635,6 @@ int ompi_comm_split_with_info( ompi_communicator_t* comm, int color, int key,
         goto exit;
     }
 
-    if (!inter) {
-        newcomp->c_index_vec[newcomp->c_my_rank] = newcomp->c_index;
-    }
-
     /* Set name for debugging purposes */
     snprintf(newcomp->c_name, MPI_MAX_OBJECT_NAME, "MPI COMM %s SPLIT FROM %s",
 	     ompi_comm_print_cid (newcomp), ompi_comm_print_cid (comm));
@@ -680,6 +647,11 @@ int ompi_comm_split_with_info( ompi_communicator_t* comm, int color, int key,
 
     /* Activate the communicator and init coll-component */
     rc = ompi_comm_activate (&newcomp, comm, NULL, NULL, NULL, false, mode);
+
+    /* MPI-4 §7.4.4 requires us to remove all unknown keys from the info object */
+    if (NULL != newcomp->super.s_info) {
+        opal_info_remove_unreferenced(newcomp->super.s_info);
+    }
 
  exit:
     free ( results );
@@ -1011,6 +983,10 @@ int ompi_comm_split_type (ompi_communicator_t *comm, int split_type, int key,
         }
 
         if (!need_split) {
+
+            /* MPI-4 §7.4.4 requires us to remove all unknown keys from the info object */
+            opal_info_remove_unreferenced(newcomp->super.s_info);
+
             /* common case. no reordering and no MPI_UNDEFINED */
             *newcomm = newcomp;
 
@@ -1101,6 +1077,9 @@ int ompi_comm_dup_with_info ( ompi_communicator_t * comm, opal_info_t *info, omp
         OBJ_RELEASE(newcomp);
         return rc;
     }
+
+    /* MPI-4 §7.4.4 requires us to remove all unknown keys from the info object */
+    opal_info_remove_unreferenced(newcomp->super.s_info);
 
     *newcomm = newcomp;
     return MPI_SUCCESS;
@@ -1256,6 +1235,11 @@ static int ompi_comm_idup_with_info_activate (ompi_comm_request_t *request)
 
 static int ompi_comm_idup_with_info_finish (ompi_comm_request_t *request)
 {
+    ompi_comm_idup_with_info_context_t *context =
+        (ompi_comm_idup_with_info_context_t *) request->context;
+    /* MPI-4 §7.4.4 requires us to remove all unknown keys from the info object */
+    opal_info_remove_unreferenced(context->newcomp->super.s_info);
+
     /* done */
     return MPI_SUCCESS;
 }
@@ -1312,11 +1296,14 @@ int ompi_comm_create_from_group (ompi_group_t *group, const char *tag, opal_info
 {
     ompi_communicator_t *newcomp = NULL;
     int rc;
+
     *newcomm = MPI_COMM_NULL;
+
     rc = ompi_comm_set_simple (&newcomp, errhandler, group);
     if (OPAL_UNLIKELY(OMPI_SUCCESS != rc)) {
         return rc;
     }
+
     /* Determine context id. It is identical to f_2_c_handle */
     rc = ompi_comm_nextcid (newcomp, NULL, NULL, (void *) tag, NULL, false,
                             OMPI_COMM_CID_GROUP_NEW);
@@ -1332,6 +1319,7 @@ int ompi_comm_create_from_group (ompi_group_t *group, const char *tag, opal_info
     if (NULL == newcomp->super.s_info) {
         return OMPI_ERR_OUT_OF_RESOURCE;
     }
+
     /* activate communicator and init coll-module. use the group allreduce implementation as
      * no collective module has yet been selected. the tag does not matter as any tag will
      * be unique on the new communicator. */
@@ -1340,7 +1328,19 @@ int ompi_comm_create_from_group (ompi_group_t *group, const char *tag, opal_info
     if ( OMPI_SUCCESS != rc ) {
         return rc;
     }
+
     newcomp->instance = group->grp_instance;
+
+    /*
+     * setup predefined keyvals - see MPI Standard for predefined keyvals cached on 
+     * communicators created via MPI_Comm_from_group or MPI_Intercomm_create_from_groups
+     */
+    ompi_attr_hash_init(&newcomp->c_keyhash);
+    ompi_attr_set_int(COMM_ATTR,
+                      newcomp,
+                      &newcomp->c_keyhash,
+                      MPI_TAG_UB, mca_pml.pml_max_tag,
+                      true);
 
     *newcomm = newcomp;
     return MPI_SUCCESS;
@@ -1411,7 +1411,7 @@ int ompi_intercomm_create (ompi_communicator_t *local_comm, int local_leader, om
     }
 
     /* put group elements in the list */
-    new_group_pointer = ompi_group_allocate_plist_w_procs (rprocs, rsize);
+    new_group_pointer = ompi_group_allocate_plist_w_procs (local_comm->c_local_group, rprocs, rsize);
     if (OPAL_UNLIKELY(NULL == new_group_pointer)) {
         free (rprocs);
         return MPI_ERR_GROUP;
@@ -1481,7 +1481,7 @@ int ompi_intercomm_create_from_groups (ompi_group_t *local_group, int local_lead
     *newintercomm = MPI_COMM_NULL;
 
     /* create a local communicator first. create a unique tag for this communicator */
-    asprintf (&sub_tag, "%s-OMPIi-%s", tag, OPAL_NAME_PRINT(ompi_group_get_proc_name (local_group, local_leader)));
+    opal_asprintf (&sub_tag, "%s-OMPIi-%s", tag, OPAL_NAME_PRINT(ompi_group_get_proc_name (local_group, local_leader)));
     if (OPAL_UNLIKELY(NULL == sub_tag)) {
         return OMPI_ERR_OUT_OF_RESOURCE;
     }
@@ -1518,16 +1518,18 @@ int ompi_intercomm_create_from_groups (ompi_group_t *local_group, int local_lead
             /* create a unique tag for allocating the leader communicator. we can eliminate this step
              * if we take a CID from the newly allocated block belonging to local_comm. this is
              * a note to make this change at a later time. */
-            asprintf (&sub_tag, "%s-OMPIi-LC", tag);
+            opal_asprintf (&sub_tag, "%s-OMPIi-LC", tag);
             if (OPAL_UNLIKELY(NULL == sub_tag)) {
                 ompi_comm_free (&local_comm);
+                free(leader_procs);
                 return OMPI_ERR_OUT_OF_RESOURCE;
             }
 
-            leader_group = ompi_group_allocate_plist_w_procs (leader_procs, 2);
+            leader_group = ompi_group_allocate_plist_w_procs (NULL, leader_procs, 2);
             ompi_set_group_rank (leader_group, my_proc);
             if (OPAL_UNLIKELY(NULL == leader_group)) {
                 free (sub_tag);
+                free(leader_procs);
                 ompi_comm_free (&local_comm);
                 return OMPI_ERR_OUT_OF_RESOURCE;
             }
@@ -1539,6 +1541,7 @@ int ompi_intercomm_create_from_groups (ompi_group_t *local_group, int local_lead
             OBJ_RELEASE(leader_group);
             free (sub_tag);
             if (OPAL_UNLIKELY(OMPI_SUCCESS != rc)) {
+                free(leader_procs);
                 ompi_comm_free (&local_comm);
                 return rc;
             }
@@ -1554,8 +1557,6 @@ int ompi_intercomm_create_from_groups (ompi_group_t *local_group, int local_lead
         } else {
             free (leader_procs);
         }
-
-        rsize = remote_group->grp_proc_count;
     }
 
     /* bcast size and list of remote processes to all processes in local_comm */
@@ -1576,7 +1577,7 @@ int ompi_intercomm_create_from_groups (ompi_group_t *local_group, int local_lead
 
     if (!i_am_leader) {
         /* create a new group containing the remote processes for non-leader ranks */
-        remote_group = ompi_group_allocate_plist_w_procs (rprocs, rsize);
+        remote_group = ompi_group_allocate_plist_w_procs (local_group, rprocs, rsize);
         if (OPAL_UNLIKELY(NULL == remote_group)) {
             free (rprocs);
             ompi_comm_free (&local_comm);
@@ -1644,14 +1645,13 @@ int ompi_comm_compare(ompi_communicator_t *comm1, ompi_communicator_t *comm2, in
     int cmp_result;
 
     if (comm1->instance != comm2->instance) {
-        printf("Tried to compare two comms from different sessions\n");
         return OMPI_ERR_BAD_PARAM;
     }
 
     comp1 = (ompi_communicator_t *) comm1;
     comp2 = (ompi_communicator_t *) comm2;
 
-    if ( comp1->c_index == comp2->c_index ) {
+    if (ompi_comm_compare_cids(comp1,comp2)) {
         *result = MPI_IDENT;
         return MPI_SUCCESS;
     }
@@ -1915,7 +1915,7 @@ int ompi_comm_free( ompi_communicator_t **comm )
          * makes sure that the pointer to the dependent communicator
          * still contains a valid object.
          */
-        ompi_communicator_t *tmpcomm = (ompi_communicator_t *) opal_pointer_array_get_item(&ompi_comm_array, cid);
+        ompi_communicator_t *tmpcomm = (ompi_communicator_t *) opal_pointer_array_get_item(&ompi_mpi_communicators, cid);
         if ( NULL != tmpcomm ){
             ompi_comm_free(&tmpcomm);
         }
@@ -2049,7 +2049,7 @@ int ompi_comm_get_rprocs (ompi_communicator_t *local_comm, ompi_communicator_t *
         PMIX_DATA_BUFFER_RELEASE(sbuf);
     }
 
-    /* broadcast name list to all proceses in local_comm */
+    /* broadcast name list to all processes in local_comm */
     rc = local_comm->c_coll->coll_bcast( recvbuf, rlen, MPI_BYTE,
                                         local_leader, local_comm,
                                         local_comm->c_coll->coll_bcast_module);
@@ -2341,6 +2341,10 @@ static int ompi_comm_fill_rest(ompi_communicator_t *comm,
                                int my_rank,
                                ompi_errhandler_t *errh)
 {
+    ompi_group_t *new_group;
+
+    new_group = ompi_group_allocate_plist_w_procs(comm->c_local_group, proc_pointers, num_procs);
+
     /* properly decrement the ref counts on the groups.
        We are doing this because this function is sort of a redo
        of what is done in comm.c. No need to decrement the ref
@@ -2356,7 +2360,7 @@ static int ompi_comm_fill_rest(ompi_communicator_t *comm,
     }
 
     /* allocate a group structure for the new communicator */
-    comm->c_local_group = ompi_group_allocate_plist_w_procs (proc_pointers, num_procs);
+    comm->c_local_group = new_group;
 
     /* set the remote group to be the same as local group */
     comm->c_remote_group = comm->c_local_group;

@@ -45,11 +45,11 @@ mca_coll_ucc_component_t mca_coll_ucc_component = {
         .collm_init_query = mca_coll_ucc_init_query,
         .collm_comm_query = mca_coll_ucc_comm_query,
     },
-    10,               /* ucc_priority                */
+    10,                /* ucc_priority                */
     0,                 /* ucc_verbose                 */
     0,                 /* ucc_enable                  */
     2,                 /* ucc_np                      */
-    "basic",           /* cls                         */
+    "",                /* cls                         */
     COLL_UCC_CTS_STR,  /* requested coll_types string */
     UCC_VERSION_STRING /* ucc version                 */
 };
@@ -114,6 +114,12 @@ static ucc_coll_type_t mca_coll_ucc_str_to_type(const char *str)
         return UCC_COLL_TYPE_ALLTOALL;
     } else if (0 == strcasecmp(str, "alltoallv")) {
         return UCC_COLL_TYPE_ALLTOALLV;
+    } else if (0 == strcasecmp(str, "allgather")) {
+        return UCC_COLL_TYPE_ALLGATHER;
+    } else if (0 == strcasecmp(str, "allgatherv")) {
+        return UCC_COLL_TYPE_ALLGATHERV;
+    } else if (0 == strcasecmp(str, "reduce")) {
+        return UCC_COLL_TYPE_REDUCE;
     }
     UCC_ERROR("incorrect value for cts: %s, allowed: %s",
               str, COLL_UCC_CTS_STR);

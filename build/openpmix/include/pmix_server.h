@@ -581,10 +581,9 @@ typedef struct pmix_server_module_4_0_0_t {
     pmix_server_grp_fn_t                group;
     pmix_server_fabric_fn_t             fabric;
     pmix_server_client_connected2_fn_t  client_connected2;
-    /* v5x interfaces (res change) */
+    /* dynamic interfaces */
     pmix_server_pset_operation_fn_t     pset_operation;
 } pmix_server_module_t;
-
 
 /****    HOST RM FUNCTIONS FOR INTERFACE TO PMIX SERVER    ****/
 
@@ -871,7 +870,9 @@ PMIX_EXPORT pmix_status_t PMIx_server_define_process_set(const pmix_proc_t *memb
  */
 PMIX_EXPORT pmix_status_t PMIx_server_delete_process_set(char *pset_name);
 
+
 PMIX_EXPORT void psetop_cbfunc(pmix_status_t status, pmix_psetop_directive_t directive, pmix_info_t *info, size_t ninfo, void *cbdata,
+
                          pmix_release_cbfunc_t release_fn, void *release_cbdata);
 
 

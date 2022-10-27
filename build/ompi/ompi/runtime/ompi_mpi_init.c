@@ -10,7 +10,7 @@
  *                         University of Stuttgart.  All rights reserved.
  * Copyright (c) 2004-2005 The Regents of the University of California.
  *                         All rights reserved.
- * Copyright (c) 2006-2018 Cisco Systems, Inc.  All rights reserved
+ * Copyright (c) 2006-2022 Cisco Systems, Inc.  All rights reserved
  * Copyright (c) 2006-2015 Los Alamos National Security, LLC.  All rights
  *                         reserved.
  * Copyright (c) 2006-2009 University of Houston. All rights reserved.
@@ -18,8 +18,8 @@
  * Copyright (c) 2011-2020 Sandia National Laboratories. All rights reserved.
  * Copyright (c) 2012-2013 Inria.  All rights reserved.
  * Copyright (c) 2014-2020 Intel, Inc.  All rights reserved.
- * Copyright (c) 2014-2016 Research Organization for Information Science
- *                         and Technology (RIST). All rights reserved.
+ * Copyright (c) 2014-2021 Research Organization for Information Science
+ *                         and Technology (RIST).  All rights reserved.
  * Copyright (c) 2016-2018 Mellanox Technologies Ltd. All rights reserved.
  *
  * Copyright (c) 2016-2017 IBM Corporation. All rights reserved.
@@ -106,7 +106,7 @@
 #ifdef HAVE___MALLOC_INITIALIZE_HOOK
 #include "opal/mca/memory/base/base.h"
 /* So this sucks, but with OPAL in its own library that is brought in
-   implicity from libmpi, there are times when the malloc initialize
+   implicitly from libmpi, there are times when the malloc initialize
    hook in the memory component doesn't work.  So we have to do it
    from here, since any MPI code is going to call MPI_Init... */
 OPAL_DECLSPEC void (*__malloc_initialize_hook) (void) =
@@ -118,11 +118,6 @@ OPAL_DECLSPEC void (*__malloc_initialize_hook) (void) =
  */
 #include <float.h>
 
-#if OPAL_CC_USE_PRAGMA_IDENT
-#pragma ident OMPI_IDENT_STRING
-#elif OPAL_CC_USE_IDENT
-#ident OMPI_IDENT_STRING
-#endif
 const char ompi_version_string[] = OMPI_IDENT_STRING;
 
 /*
@@ -140,7 +135,7 @@ opal_thread_t *ompi_mpi_main_thread = NULL;
 
 /*
  * These variables are for the MPI F08 bindings (F08 must bind Fortran
- * varaiables to symbols; it cannot bind Fortran variables to the
+ * variables to symbols; it cannot bind Fortran variables to the
  * address of a C variable).
  */
 
@@ -218,21 +213,31 @@ struct ompi_status_public_t *ompi_mpi_statuses_ignore_addr =
 #  if OMPI_FORTRAN_CAPS
 MPI_Fint *MPI_F_STATUS_IGNORE = (MPI_Fint*) &MPI_FORTRAN_STATUS_IGNORE;
 MPI_Fint *MPI_F_STATUSES_IGNORE = (MPI_Fint*) &MPI_FORTRAN_STATUSES_IGNORE;
+MPI_Fint *MPI_F08_STATUS_IGNORE = (MPI_Fint*) &MPI_FORTRAN_STATUS_IGNORE;
+MPI_Fint *MPI_F08_STATUSES_IGNORE = (MPI_Fint*) &MPI_FORTRAN_STATUSES_IGNORE;
 #  elif OMPI_FORTRAN_PLAIN
 MPI_Fint *MPI_F_STATUS_IGNORE = (MPI_Fint*) &mpi_fortran_status_ignore;
 MPI_Fint *MPI_F_STATUSES_IGNORE = (MPI_Fint*) &mpi_fortran_statuses_ignore;
+MPI_Fint *MPI_F08_STATUS_IGNORE = (MPI_Fint*) &mpi_fortran_status_ignore;
+MPI_Fint *MPI_F08_STATUSES_IGNORE = (MPI_Fint*) &mpi_fortran_statuses_ignore;
 #  elif OMPI_FORTRAN_SINGLE_UNDERSCORE
 MPI_Fint *MPI_F_STATUS_IGNORE = (MPI_Fint*) &mpi_fortran_status_ignore_;
 MPI_Fint *MPI_F_STATUSES_IGNORE = (MPI_Fint*) &mpi_fortran_statuses_ignore_;
+MPI_Fint *MPI_F08_STATUS_IGNORE = (MPI_Fint*) &mpi_fortran_status_ignore_;
+MPI_Fint *MPI_F08_STATUSES_IGNORE = (MPI_Fint*) &mpi_fortran_statuses_ignore_;
 #  elif OMPI_FORTRAN_DOUBLE_UNDERSCORE
 MPI_Fint *MPI_F_STATUS_IGNORE = (MPI_Fint*) &mpi_fortran_status_ignore__;
 MPI_Fint *MPI_F_STATUSES_IGNORE = (MPI_Fint*) &mpi_fortran_statuses_ignore__;
+MPI_Fint *MPI_F08_STATUS_IGNORE = (MPI_Fint*) &mpi_fortran_status_ignore__;
+MPI_Fint *MPI_F08_STATUSES_IGNORE = (MPI_Fint*) &mpi_fortran_statuses_ignore__;
 #  else
 #    error Unrecognized Fortran name mangling scheme
 #  endif
 #else
 MPI_Fint *MPI_F_STATUS_IGNORE = NULL;
 MPI_Fint *MPI_F_STATUSES_IGNORE = NULL;
+MPI_Fint *MPI_F08_STATUS_IGNORE = NULL;
+MPI_Fint *MPI_F08_STATUSES_IGNORE = NULL;
 #endif  /* OMPI_BUILD_FORTRAN_BINDINGS */
 
 
@@ -252,7 +257,7 @@ MPI_Fint *MPI_F_STATUSES_IGNORE = NULL;
    in a linker warning).  FWIW, if you initialize these variables in
    functions (i.e., not at the instantiation in the global scope), the
    linker somehow "figures it all out" (w.r.t. different alignments
-   between fortan common blocks and the corresponding C variables) and
+   between fortran common blocks and the corresponding C variables) and
    no linker warnings occur.
 
    Note that the rationale for the types of each of these variables is
@@ -299,7 +304,9 @@ int ompi_mpi_init(int argc, char **argv, int requested, int *provided,
 {
     int ret;
     char *error = NULL;
+#if OPAL_USING_INTERNAL_PMIX
     char *evar;
+#endif
     volatile bool active;
     bool background_fence = false;
     pmix_info_t info[2];
@@ -349,7 +356,7 @@ int ompi_mpi_init(int argc, char **argv, int requested, int *provided,
 
     ompi_mpi_thread_level(requested, provided);
 
-    ret = ompi_mpi_instance_init (*provided, &ompi_mpi_info_null.info.super, MPI_ERRORS_ARE_FATAL, &ompi_mpi_instance_default);
+    ret = ompi_mpi_instance_init (*provided, &ompi_mpi_info_null.info.super, MPI_ERRORS_ARE_FATAL, &ompi_mpi_instance_default, argc, argv);
     if (OPAL_UNLIKELY(OMPI_SUCCESS != ret)) {
         error = "ompi_mpi_init: ompi_mpi_instance_init failed";
         goto error;
@@ -360,6 +367,13 @@ int ompi_mpi_init(int argc, char **argv, int requested, int *provided,
     /* initialize communicator subsystem */
     if (OMPI_SUCCESS != (ret = ompi_comm_init_mpi3 ())) {
         error = "ompi_mpi_init: ompi_comm_init_mpi3 failed";
+        goto error;
+    }
+
+    /* Bozo argument check */
+    if (NULL == argv && argc > 1) {
+        ret = OMPI_ERR_BAD_PARAM;
+        error = "argc > 1, but argv == NULL";
         goto error;
     }
 
@@ -382,12 +396,13 @@ int ompi_mpi_init(int argc, char **argv, int requested, int *provided,
     if (OMPI_TIMING_ENABLED && !opal_pmix_base_async_modex &&
             opal_pmix_collect_all_data && !ompi_singleton) {
         if (PMIX_SUCCESS != (rc = PMIx_Fence(NULL, 0, NULL, 0))) {
-            ret - opal_pmix_convert_status(rc);
+            ret = opal_pmix_convert_status(rc);
             error = "timing: pmix-barrier-1 failed";
             goto error;
         }
         OMPI_TIMING_NEXT("pmix-barrier-1");
         if (PMIX_SUCCESS != (rc = PMIx_Fence(NULL, 0, NULL, 0))) {
+            ret = opal_pmix_convert_status(rc);
             error = "timing: pmix-barrier-2 failed";
             goto error;
         }
@@ -514,7 +529,8 @@ int ompi_mpi_init(int argc, char **argv, int requested, int *provided,
        CPU utilization for the remainder of MPI_INIT when we are
        blocking on RTE-level events, but may greatly reduce non-TCP
        latency. */
-    opal_progress_set_event_flag(OPAL_EVLOOP_NONBLOCK);
+    int old_event_flags = opal_progress_set_event_flag(0);
+    opal_progress_set_event_flag(old_event_flags | OPAL_EVLOOP_NONBLOCK);
 #endif
 
     /* wire up the mpi interface, if requested.  Do this after the

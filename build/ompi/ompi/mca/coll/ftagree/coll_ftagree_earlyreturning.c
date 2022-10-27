@@ -1044,7 +1044,7 @@ static int era_tree_check_node(era_tree_t *tree, int tree_size, int r, int displ
     if( tree[r].rank_in_comm <
         tree[ tree[r].parent ].rank_in_comm ) {
         tree_errors++;
-        fprintf(stderr, "TC %s -- %d/%d(%d): broken hiearchy as my parent is %d in the communicator\n",
+        fprintf(stderr, "TC %s -- %d/%d(%d): broken hierarchy as my parent is %d in the communicator\n",
                 OMPI_NAME_PRINT(OMPI_PROC_MY_NAME), r, tree_size, tree[r].rank_in_comm, tree[tree[r].parent].rank_in_comm);
     }
 
@@ -1300,7 +1300,7 @@ static void era_call_tree_fn(era_agreement_info_t *ci)
     }
 #else
     /* Hierarchical tree disabled for now. ESS does not give daemon names
-     * anymore. TODO: ENABLE_FT_MPI: restore hierarchical tree capabilitiy. */
+     * anymore. TODO: ENABLE_FT_MPI: restore hierarchical tree capability. */
     era_tree_fn(AGS(ci->comm)->tree, AGS(ci->comm)->tree_size);
 #endif
 }
@@ -1636,7 +1636,7 @@ static void era_decide(era_value_t *decided_value, era_agreement_info_t *ci)
                                          ci->agreement_id.ERAID_KEY, &value) == OMPI_SUCCESS ) {
         /**
          * If the value was already decided, then this DOWN message
-         * *must* provide the same decision: it can only be a dupplicate.
+         * *must* provide the same decision: it can only be a duplicate.
          */
         era_value_t *old_agreement_value;
         old_agreement_value = (era_value_t*)value;
@@ -1749,7 +1749,7 @@ static void era_decide(era_value_t *decided_value, era_agreement_info_t *ci)
     r = -1;
     while( (r = era_next_child(ci, r)) < ompi_comm_size(comm) ) {
 
-        /** Cleanup the early_requesters list, to avoid sending unecessary dupplicate messages */
+        /** Cleanup the early_requesters list, to avoid sending unnecessary duplicate messages */
         if( opal_list_get_size(&ci->early_requesters) > 0 ) {
             for(rl = (era_rank_item_t*)opal_list_get_first(&ci->early_requesters);
                 rl != (era_rank_item_t*)opal_list_get_end(&ci->early_requesters);
@@ -2639,7 +2639,6 @@ static void era_cb_fn(struct mca_btl_base_module_t* btl,
                       const mca_btl_base_receive_descriptor_t* descriptor)
 {
     era_incomplete_msg_t *incomplete_msg = NULL;
-    mca_btl_base_tag_t tag = descriptor->tag;
     era_msg_header_t *msg_header;
     era_frag_t *frag;
     uint64_t src_hash;
@@ -2649,7 +2648,7 @@ static void era_cb_fn(struct mca_btl_base_module_t* btl,
     int *new_dead;
     int *ack_failed;
 
-    assert(MCA_BTL_TAG_FT_AGREE == tag);
+    assert(MCA_BTL_TAG_FT_AGREE == descriptor->tag);
     assert(1 == descriptor->des_segment_count);
 
     frag = (era_frag_t*)descriptor->des_segments->seg_addr.pval;
@@ -3231,6 +3230,12 @@ int mca_coll_ftagree_era_inter(void *contrib,
         contriblh[1] = *(int*)contrib;
     }
 
+    /* The 'shadowcomm' is used to perform the agreement on the union of the
+     * local and remote groups. We create a 'fake' new communicator that shares
+     * the cid/c_index with the original. This is possible because ERA does not
+     * use normal MPI messages, but only uses c_index to match agreements
+     * from its own BML callbacks.
+     */
     ompi_comm_set(&shadowcomm,                     /* new comm */
                   comm,                            /* old comm */
                   ompi_group_size(uniongrp),       /* local_size */
@@ -3239,13 +3244,14 @@ int mca_coll_ftagree_era_inter(void *contrib,
                   NULL,                            /* remote procs */
                   NULL,                            /* attrs */
                   comm->error_handler,             /* error handler */
-                  NULL,                            /* local group */
-                  uniongrp,                        /* remote group */
+                  uniongrp,                        /* local group */
+                  NULL,                            /* remote group */
                   0);                              /* flags */
 
     ompi_group_free(&uniongrp);
     shadowcomm->c_contextid = comm->c_contextid;
     shadowcomm->c_epoch = comm->c_epoch;
+    shadowcomm->c_index = comm->c_index;
     snprintf(shadowcomm->c_name, MPI_MAX_OBJECT_NAME, "SHADOW OF %s", &comm->c_name[0]);
     shadowcomm->any_source_offset = comm->any_source_offset;
     shadowcomm->agreement_specific = comm->agreement_specific;

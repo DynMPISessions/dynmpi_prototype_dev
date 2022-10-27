@@ -8,6 +8,8 @@
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  * Copyright (c) 2016      IBM Corporation.  All rights reserved.
+ * Copyright (c) 2021      Triad National Security, LLC. All rights
+ *                         reserved.
  * $COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -30,6 +32,7 @@ typedef struct ompi_comm_request_item_t {
     opal_list_item_t super;
     ompi_comm_request_callback_fn_t callback;
     ompi_request_t *subreqs[OMPI_COMM_REQUEST_MAX_SUBREQ];
+    uint32_t flags;
     int subreq_count;
 } ompi_comm_request_item_t;
 OBJ_CLASS_DECLARATION(ompi_comm_request_item_t);
@@ -71,6 +74,12 @@ void ompi_comm_request_fini (void)
 int ompi_comm_request_schedule_append (ompi_comm_request_t *request, ompi_comm_request_callback_fn_t callback,
                             ompi_request_t *subreqs[], int subreq_count)
 {
+    return ompi_comm_request_schedule_append_w_flags(request, callback, subreqs, subreq_count, 0);
+}
+
+int ompi_comm_request_schedule_append_w_flags(ompi_comm_request_t *request, ompi_comm_request_callback_fn_t callback,
+                            ompi_request_t *subreqs[], int subreq_count, uint32_t flags)
+{
     ompi_comm_request_item_t *request_item;
     int i;
 
@@ -84,6 +93,7 @@ int ompi_comm_request_schedule_append (ompi_comm_request_t *request, ompi_comm_r
     }
 
     request_item->callback = callback;
+    request_item->flags = flags;
 
     for (i = 0 ; i < subreq_count ; ++i) {
         request_item->subreqs[i] = subreqs[i];
@@ -108,7 +118,7 @@ static int ompi_comm_request_progress (void)
     }
 
     opal_mutex_lock (&ompi_comm_request_mutex);
-    //printf("num requests: %d for proc %d\n", opal_list_get_size(&ompi_comm_requests_active), opal_process_info.my_name.vpid );
+
     OPAL_LIST_FOREACH_SAFE(request, next, &ompi_comm_requests_active, ompi_comm_request_t) {
         int rc = OMPI_SUCCESS;
 
@@ -118,32 +128,29 @@ static int ompi_comm_request_progress (void)
 
             /* don't call ompi_request_test_all as it causes a recursive call into opal_progress */
             while (request_item->subreq_count) {
-                //printf("comm_request while %d of proc %d\n", request_item->subreq_count, opal_process_info.my_name.vpid);
                 ompi_request_t *subreq = request_item->subreqs[request_item->subreq_count-1];
                 if( REQUEST_COMPLETE(subreq) ) {
-                    //printf("complete\n");
                     if (OMPI_SUCCESS != subreq->req_status.MPI_ERROR) {
                         /* Let it continue but mark it as failed, so
                          * that it does some subreqs cleanup */
                         request->super.req_status.MPI_ERROR = subreq->req_status.MPI_ERROR;
                     }
-                    ompi_request_free (&subreq);
+                    if (!(request_item->flags & OMPI_COMM_REQ_FLAG_RETAIN_SUBREQ)) {
+                        ompi_request_free (&subreq);
+                    }
                     request_item->subreq_count--;
                     completed++;
                 } else {
-                    //printf("not complete\n");
                     item_complete = false;
                     break;
                 }
             }
-            //printf("out of while\n");
+
             if (item_complete) {
-                //printf("item complete\n");
                 if (request_item->callback) {
                     opal_mutex_unlock (&ompi_comm_request_mutex);
                     /* the callback should check for errors in the request
                      * status. */
-                    //printf("request callback\n");
                     rc = request_item->callback (request);
                     opal_mutex_lock (&ompi_comm_request_mutex);
                 }
@@ -152,7 +159,7 @@ static int ompi_comm_request_progress (void)
                 opal_list_prepend (&request->schedule, &request_item->super);
             }
         }
-        
+
         /* if the request schedule is empty then the request is complete */
         if (0 == opal_list_get_size (&request->schedule)) {
             opal_list_remove_item (&ompi_comm_requests_active, (opal_list_item_t *) request);
@@ -160,7 +167,7 @@ static int ompi_comm_request_progress (void)
             ompi_request_complete (&request->super, true);
         }
     }
-    
+
     if (0 == opal_list_get_size (&ompi_comm_requests_active)) {
         /* no more active requests. disable this progress function */
         ompi_comm_request_progress_active = false;
@@ -169,7 +176,7 @@ static int ompi_comm_request_progress (void)
 
     opal_mutex_unlock (&ompi_comm_request_mutex);
     progressing = 0;
-    //printf("progress return\n");
+
     return completed;
 }
 

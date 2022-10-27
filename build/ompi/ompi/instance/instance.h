@@ -118,12 +118,11 @@ static void rc_finalize_handler(size_t evhdlr_registration_id, pmix_status_t sta
 
 OBJ_CLASS_DECLARATION(ompi_mpi_instance_pset_t);
 
-
-
 struct ompi_group_t;
 
 struct ompi_instance_t {
     opal_infosubscriber_t  super;
+    opal_mutex_t           s_lock;
     int                    i_thread_level;
     char                   i_name[MPI_MAX_OBJECT_NAME];
     uint32_t               i_flags;
@@ -142,7 +141,6 @@ struct ompi_instance_t {
 typedef struct ompi_instance_t ompi_instance_t;
 
 OBJ_CLASS_DECLARATION(ompi_instance_t);
-
 
 /* Define for the preallocated size of the predefined handle.
  * Note that we are using a pointer type as the base memory chunk
@@ -220,7 +218,8 @@ void ompi_mpi_instance_release (void);
  * @param[in]    info      info object
  * @param[in]    errhander errhandler to set on the instance
  */
-OMPI_DECLSPEC int ompi_mpi_instance_init (int ts_level, opal_info_t *info, ompi_errhandler_t *errhandler, ompi_instance_t **instance);
+OMPI_DECLSPEC int ompi_mpi_instance_init (int ts_level, opal_info_t *info, ompi_errhandler_t *errhandler,
+                                          ompi_instance_t **instance, int argc, char **argv);
 
 /**
  * @brief Destroy an MPI instance and set it to MPI_SESSION_NULL
@@ -246,6 +245,8 @@ OMPI_DECLSPEC int ompi_group_from_pset (ompi_instance_t *instance, const char *p
 OMPI_DECLSPEC int ompi_instance_get_num_psets (ompi_instance_t *instance, int *npset_names);
 OMPI_DECLSPEC int ompi_instance_get_nth_pset (ompi_instance_t *instance, int n, int *len, char *pset_name);
 OMPI_DECLSPEC int ompi_instance_get_pset_info (ompi_instance_t *instance, const char *pset_name, opal_info_t **info_used);
+
+/* Dyn Sessions */
 OMPI_DECLSPEC int ompi_instance_get_pset_membership (ompi_instance_t *instance, char *pset_name, opal_process_name_t **members, size_t *nmembers);
 int ompi_instance_free_pset_membership(char *pset_name);
 
@@ -257,17 +258,32 @@ OMPI_DECLSPEC int ompi_instance_request_res_change(MPI_Session session, int delt
 OMPI_DECLSPEC int ompi_instance_accept_res_change(ompi_instance_t *instance, opal_info_t **info_used, char *delta_pset, char* new_pset, bool blocking);
 OMPI_DECLSPEC int ompi_instance_confirm_res_change(ompi_instance_t *instance, opal_info_t **info_used, char *delta_pset, char **new_pset);
 
+OMPI_DECLSPEC int ompi_instance_integrate_res_change(ompi_instance_t *instance, char *delta_pset, char *pset_buf, int provider, int *terminate);
+OMPI_DECLSPEC int ompi_instance_integrate_res_change_nb(ompi_instance_t *instance, char *delta_pset, char *pset_buf, int provider, int *terminate, ompi_request_t *request);
+
 
 pmix_proc_t ompi_intance_get_pmixid(void);
 int opal_pmix_proc_array_conv(opal_process_name_t *opal_procs, pmix_proc_t **pmix_procs, size_t nprocs);
 int pmix_opal_proc_array_conv(pmix_proc_t *pmix_procs,opal_process_name_t **opal_procs, size_t nprocs);
 bool is_pset_member(pmix_proc_t *pset_members, size_t nmembers, pmix_proc_t proc);
 bool is_pset_leader(pmix_proc_t *pset_members, size_t nmembers, pmix_proc_t proc);
+bool opal_is_pset_member(opal_process_name_t *procs, size_t nprocs, opal_process_name_t proc);
 void ompi_instance_clear_rc_cache(char *delta_pset);
 int ompi_instance_get_rc_type(char *delta_pset, ompi_rc_op_type_t *rc_type);
 static void ompi_instance_refresh_pmix_psets (const char *key);
 int ompi_mpi_instance_refresh (ompi_instance_t *instance, opal_info_t *info, char *pset_name, ompi_rc_op_type_t rc_type, char *result_pset, bool root);
 
+int ompi_instance_pset_fence_multiple_nb(ompi_instance_t *instance, char **pset_names, int num_psets, ompi_info_t *info, pmix_op_cbfunc_t cbfunc, void *cbdata);
+
+void pmix_op_cb_nb(pmix_status_t status, void *cbdata);
+
+void pmix_lookup_cb_nb(pmix_status_t status, pmix_pdata_t pdata[], size_t ndata, void *cbdata);
+
+void pmix_info_cb_nb( pmix_status_t status, pmix_info_t *info, size_t ninfo, void *cbdata, pmix_release_cbfunc_t release_fn, void *release_cbdata);
+
+int ompi_instance_nb_req_free(ompi_request_t **req);
+
+int ompi_instance_get_pset_membership_nb(ompi_instance_t *instance, char **pset_names, int npsets, pmix_info_cbfunc_t cbfunc, void *cbdata);
 
 /**
  * @brief current number of active instances

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012      Sandia National Laboratories.  All rights reserved.
+ * Copyright (c) 2012-2022 Sandia National Laboratories.  All rights reserved.
  * $COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -27,7 +27,7 @@ struct ompi_mtl_portals4_pending_request_t {
     mca_pml_base_send_mode_t mode;
     void *start;
     size_t length;
-    int contextid;
+    uint32_t contextid;
     int tag;
     int my_rank;
     int fc_notified;
@@ -39,7 +39,7 @@ OBJ_CLASS_DECLARATION(ompi_mtl_portals4_pending_request_t);
 
 
 struct ompi_mtl_portals4_flowctl_t {
-    int32_t flowctl_active;
+    opal_atomic_int32_t flowctl_active;
 
     opal_atomic_int32_t send_slots;
     int32_t max_send_slots;

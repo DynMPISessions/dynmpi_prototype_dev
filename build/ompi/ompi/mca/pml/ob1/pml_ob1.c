@@ -3,7 +3,7 @@
  * Copyright (c) 2004-2010 The Trustees of Indiana University and Indiana
  *                         University Research and Technology
  *                         Corporation.  All rights reserved.
- * Copyright (c) 2004-2020 The University of Tennessee and The University
+ * Copyright (c) 2004-2022 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  * Copyright (c) 2004-2005 High Performance Computing Center Stuttgart,
@@ -22,8 +22,9 @@
  *                         All rights reserved.
  * Copyright (c) 2018 IBM Corporation. All rights reserved.
  * Copyright (c) 2019-2020 Intel, Inc.  All rights reserved.
+ * Copyright (c) 2021      Nanook Consulting.  All rights reserved.
  * Copyright (c) 2018-2021 Triad National Security, LLC. All rights
- *                         reseved.
+ *                         reserved.
  * $COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -62,32 +63,34 @@
 
 mca_pml_ob1_t mca_pml_ob1 = {
     {
-        mca_pml_ob1_add_procs,
-        mca_pml_ob1_del_procs,
-        mca_pml_ob1_enable,
-        NULL,  /* mca_pml_ob1_progress, */
-        mca_pml_ob1_add_comm,
-        mca_pml_ob1_del_comm,
+        .pml_add_procs      = mca_pml_ob1_add_procs,
+        .pml_del_procs      = mca_pml_ob1_del_procs,
+        .pml_enable         = mca_pml_ob1_enable,
+        .pml_progress       = NULL,  /* mca_pml_ob1_progress, */
+        .pml_add_comm       = mca_pml_ob1_add_comm,
+        .pml_del_comm       = mca_pml_ob1_del_comm,
 #if OPAL_ENABLE_FT_MPI
-        mca_pml_ob1_revoke_comm,
+        .pml_revoke_comm    = mca_pml_ob1_revoke_comm,
+#else
+        .pml_revoke_comm    = NULL,
 #endif
-        mca_pml_ob1_irecv_init,
-        mca_pml_ob1_irecv,
-        mca_pml_ob1_recv,
-        mca_pml_ob1_isend_init,
-        mca_pml_ob1_isend,
-        mca_pml_ob1_send,
-        mca_pml_ob1_iprobe,
-        mca_pml_ob1_probe,
-        mca_pml_ob1_start,
-        mca_pml_ob1_improbe,
-        mca_pml_ob1_mprobe,
-        mca_pml_ob1_imrecv,
-        mca_pml_ob1_mrecv,
-        mca_pml_ob1_dump,
-        65535,
-        INT_MAX,
-        0 /* flags */
+        .pml_irecv_init     = mca_pml_ob1_irecv_init,
+        .pml_irecv          = mca_pml_ob1_irecv,
+        .pml_recv           = mca_pml_ob1_recv,
+        .pml_isend_init     = mca_pml_ob1_isend_init,
+        .pml_isend          = mca_pml_ob1_isend,
+        .pml_send           = mca_pml_ob1_send,
+        .pml_iprobe         = mca_pml_ob1_iprobe,
+        .pml_probe          = mca_pml_ob1_probe,
+        .pml_start          = mca_pml_ob1_start,
+        .pml_improbe        = mca_pml_ob1_improbe,
+        .pml_mprobe         = mca_pml_ob1_mprobe,
+        .pml_imrecv         = mca_pml_ob1_imrecv,
+        .pml_mrecv          = mca_pml_ob1_mrecv,
+        .pml_dump           = mca_pml_ob1_dump,
+        .pml_max_contextid  = 65535,
+        .pml_max_tag        = INT_MAX,
+        .pml_flags          = 0 /* flags */
     }
 };
 
@@ -199,6 +202,43 @@ int mca_pml_ob1_enable(bool enable)
     return OMPI_SUCCESS;
 }
 
+static const char*
+mca_pml_ob1_set_allow_overtake(opal_infosubscriber_t* obj,
+                               const char* key,
+                               const char* value)
+{
+    ompi_communicator_t *ompi_comm = (ompi_communicator_t *) obj;
+    bool allow_overtake_was_set = OMPI_COMM_CHECK_ASSERT_ALLOW_OVERTAKE(ompi_comm);
+
+    /* As we keep the out-of-sequence messages ordered by their sequence, as a receiver we
+     * can just move the previously considered out-of-order messages into the unexpected queue,
+     * and we maintain some form of logical consistency with the message order.
+     */
+    if (opal_str_to_bool(value)) {
+        if (!allow_overtake_was_set) {
+            ompi_comm->c_flags |= OMPI_COMM_ASSERT_ALLOW_OVERTAKE;
+            mca_pml_ob1_merge_cant_match(ompi_comm);
+        }
+        return "true";
+    }
+    if (allow_overtake_was_set) {
+        /* However, in the case we are trying to turn off allow_overtake, it is not clear what
+         * should be done with the previous messages that are pending on our peers, nor with
+         * the messages currently in the network. Similarly, if one process turns off allow
+         * overtake, before any potential sender start sending valid sequence numbers there
+         * is no way to order the messages in a sensible order.
+         * The possible solution is cumbersome, it would force a network quiescence followed by
+         * a synchronization of all processes in the communicator, and then all peers will
+         * start sending messages starting with sequence number 0.
+         * A lot of code for minimal benefit, especially taking in account that the MPI standard
+         * does not define this. Instead, refuse to disable allow overtake, and at least the
+         * user has the opportunity to check if we accepted to change it.
+         */
+        return "true";
+    }
+    return "false";
+}
+
 int mca_pml_ob1_add_comm(ompi_communicator_t* comm)
 {
     /* allocate pml specific comm data */
@@ -218,10 +258,13 @@ int mca_pml_ob1_add_comm(ompi_communicator_t* comm)
     }
 
     ompi_comm_assert_subscribe (comm, OMPI_COMM_ASSERT_NO_ANY_SOURCE);
-    ompi_comm_assert_subscribe (comm, OMPI_COMM_ASSERT_ALLOW_OVERTAKE);
 
     mca_pml_ob1_comm_init_size(pml_comm, comm->c_remote_group->grp_proc_count);
     comm->c_pml_comm = pml_comm;
+
+    /* Register the subscriber alert for the mpi_assert_allow_overtaking info. */
+    opal_infosubscribe_subscribe (&comm->super, "mpi_assert_allow_overtaking",
+                                  "false", mca_pml_ob1_set_allow_overtake);
 
     /* Grab all related messages from the non_existing_communicator pending queue */
     OPAL_LIST_FOREACH_SAFE(frag, next_frag, &mca_pml_ob1.non_existing_communicator_pending, mca_pml_ob1_recv_frag_t) {
@@ -294,7 +337,7 @@ int mca_pml_ob1_add_comm(ompi_communicator_t* comm)
             PERUSE_TRACE_MSG_EVENT(PERUSE_COMM_MSG_INSERT_IN_UNEX_Q, comm,
                                    hdr->hdr_src, hdr->hdr_tag, PERUSE_RECV);
             /* And now the ugly part. As some fragments can be inserted in the cant_match list,
-             * every time we succesfully add a fragment in the unexpected list we have to make
+             * every time we successfully add a fragment in the unexpected list we have to make
              * sure the next one is not in the cant_match. Otherwise, we will endup in a deadlock
              * situation as the cant_match is only checked when a new fragment is received from
              * the network.
@@ -786,7 +829,7 @@ int mca_pml_ob1_send_cid (ompi_proc_t *proc, ompi_communicator_t *comm)
     mca_pml_ob1_cid_hdr_t cid;
 
     mca_pml_ob1_cid_hdr_prepare (&cid, comm);
-    ob1_hdr_hton ((mca_pml_ob1_hdr_t *) &cid, cid->hdr_common.hdr_type, proc);
+    ob1_hdr_hton ((mca_pml_ob1_hdr_t *) &cid, cid.hdr_common.hdr_type, proc);
 
     return mca_pml_ob1_send_control_any (proc, MCA_BTL_NO_ORDER, (mca_pml_ob1_hdr_t *) &cid, sizeof (cid), true);
 }
