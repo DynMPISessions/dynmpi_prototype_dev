@@ -112,22 +112,28 @@ Note: The `DYNMPI_BASE environment variable has to be added to the environment o
 ### Synthetic Benchmark:
 * Incremental mode (Addition)
 
-`prterun -np 28 --mca btl_tcp_if_include eth0 -H node01:28,node02:28,node03:28,node04:28 -x LD_LIBRARY_PATH -x DYNMPI_BASE $DYNMPI_BASE/build/p4est_dynres/applications/build/SWE_p4est_benchOmpidynresSynthetic_release -c 70 -l 122 -m i+ -n 28 -f 10 -b 0`
+`prterun -np 28 --mca btl_tcp_if_include eth0 -H node01:28,node02:28,node03:28,node04:28 -x LD_LIBRARY_PATH -x DYNMPI_BASE $DYNMPI_BASE/build/p4est_dynres/applications/build/SWE_p4est_benchOmpidynresSynthetic_v1_release -c 120 -l 122 -m i+ -n 28 -f 10 -b 0`
 
-`prterun -np 28 --mca btl_tcp_if_include eth0 -H node01:28,node02:28,node03:28,node04:28 -x LD_LIBRARY_PATH -x DYNMPI_BASE $DYNMPI_BASE/build/p4est_dynres/applications/build/SWE_p4est_benchOmpidynresSynthetic_release -c 70 -l 122 -m i+ -n 28 -f 10 -b 1`
+`prterun -np 28 --mca btl_tcp_if_include eth0 -H node01:28,node02:28,node03:28,node04:28 -x LD_LIBRARY_PATH -x DYNMPI_BASE $DYNMPI_BASE/build/p4est_dynres/applications/build/SWE_p4est_benchOmpidynresSynthetic_v1_nb_release -c 120 -l 122 -m i+ -n 28 -f 10 -b 1`
 
 * Incremental mode (Subtraction)
 
-`prterun -np 122 --mca btl_tcp_if_include eth0 -H node01:28,node02:28,node03:28,node04:28 -x LD_LIBRARY_PATH -x DYNMPI_BASE $DYNMPI_BASE/build/p4est_dynres/applications/build/SWE_p4est_benchOmpidynresSynthetic_release -c 70 -l 28 -m i_ -n 28 -f 10 -b 0`
+`prterun -np 122 --mca btl_tcp_if_include eth0 -H node01:28,node02:28,node03:28,node04:28 -x LD_LIBRARY_PATH -x DYNMPI_BASE $DYNMPI_BASE/build/p4est_dynres/applications/build/SWE_p4est_benchOmpidynresSynthetic_v1_release -c 120 -l 28 -m i_ -n 28 -f 10 -b 0`
 
-`prterun -np 122 --mca btl_tcp_if_include eth0 -H node01:28,node02:28,node03:28,node04:28 -x LD_LIBRARY_PATH -x DYNMPI_BASE $DYNMPI_BASE/build/p4est_dynres/applications/build/SWE_p4est_benchOmpidynresSynthetic_release -c 70 -l 28 -m i_ -n 28 -f 10 -b 1`
+`prterun -np 122 --mca btl_tcp_if_include eth0 -H node01:28,node02:28,node03:28,node04:28 -x LD_LIBRARY_PATH -x DYNMPI_BASE $DYNMPI_BASE/build/p4est_dynres/applications/build/SWE_p4est_benchOmpidynresSynthetic_v1_nb_release -c 120 -l 28 -m i_ -n 28 -f 10 -b 1`
 
 
-* Step mode:
+* Step mode (Addition):
 
-`prterun -np 28 --mca btl_tcp_if_include eth0 -H node01:28,node02:28,node03:28,node04:28 -x LD_LIBRARY_PATH -x DYNMPI_BASE $DYNMPI_BASE/build/p4est_dynres/applications/build/SWE_p4est_benchOmpidynresSynthetic_release -c 70 -l 122 -m s+ -n 28 -f 10 -b 0`
+`prterun -np 28 --mca btl_tcp_if_include eth0 -H node01:28,node02:28,node03:28,node04:28 -x LD_LIBRARY_PATH -x DYNMPI_BASE $DYNMPI_BASE/build/p4est_dynres/applications/build/SWE_p4est_benchOmpidynresSynthetic_v1_release -c 200 -l 122 -m s+ -n 28 -f 10 -b 0`
 
-`prterun -np 28 --mca btl_tcp_if_include eth0 -H node01:28,node02:28,node03:28,node04:28 -x LD_LIBRARY_PATH -x DYNMPI_BASE $DYNMPI_BASE/build/p4est_dynres/applications/build/SWE_p4est_benchOmpidynresSynthetic_release -c 70 -l 122 -m s+ -n 28 -f 10 -b 1`
+`prterun -np 28 --mca btl_tcp_if_include eth0 -H node01:28,node02:28,node03:28,node04:28 -x LD_LIBRARY_PATH -x DYNMPI_BASE $DYNMPI_BASE/build/p4est_dynres/applications/build/SWE_p4est_benchOmpidynresSynthetic_v1_nb_release -c 200 -l 122 -m s+ -n 28 -f 10 -b 1`
+
+* Step mode (Subtraction):
+
+`prterun -np 28 --mca btl_tcp_if_include eth0 -H node01:28,node02:28,node03:28,node04:28 -x LD_LIBRARY_PATH -x DYNMPI_BASE $DYNMPI_BASE/build/p4est_dynres/applications/build/SWE_p4est_benchOmpidynresSynthetic_v1_release -c 200 -l 122 -m s_ -n 28 -f 10 -b 0`
+
+`prterun -np 28 --mca btl_tcp_if_include eth0 -H node01:28,node02:28,node03:28,node04:28 -x LD_LIBRARY_PATH -x DYNMPI_BASE $DYNMPI_BASE/build/p4est_dynres/applications/build/SWE_p4est_benchOmpidynresSynthetic_v1_nb_release -c 200 -l 122 -m s_ -n 28 -f 10 -b 1`
 
 ### SWE Benchmark:
 
