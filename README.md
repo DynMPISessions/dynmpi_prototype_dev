@@ -104,7 +104,7 @@ Building P4est (you might also need to consider the README.md in the build/p4est
 
 Building the benchmarks:
 
-`scons example=[benchOmpidynresSynthetic/benchOmpidynresFixed] compileMode=[debug/release]`
+`scons example=[benchOmpidynresSynthetic_v1/benchOmpidynresSynthetic_v1_nb/benchOmpidynresFixed] compileMode=[debug/release]`
 
 ## Running the benchmarks
 Note: The `DYNMPI_BASE environment variable has to be added to the environment on every invloved node. Using the -x option for the prterun command is mandatory but eventually not sufficient.
